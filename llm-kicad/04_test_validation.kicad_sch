@@ -1307,16 +1307,6 @@
 	)
 	(wire
 		(pts
-			(xy 149.86 69.85) (xy 149.86 72.39)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2cab07e0-8645-4cf0-b808-e81aa9c0ab2b")
-	)
-	(wire
-		(pts
 			(xy 85.09 158.75) (xy 85.09 161.29)
 		)
 		(stroke
@@ -1839,28 +1829,6 @@
 			)
 		)
 	)
-	(global_label "HIL_FLT_N"
-		(shape input)
-		(at 149.86 72.39 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left)
-		)
-		(uuid "c29a307b-8998-4510-9a18-90ec10ff9176")
-		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 149.86 72.39 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-	)
 	(global_label "HIL_VBUS_EN"
 		(shape input)
 		(at 190.5 72.39 0)
@@ -2009,7 +1977,7 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom no)
+		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
@@ -2418,7 +2386,7 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom no)
+		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
@@ -2509,7 +2477,7 @@
 				)
 			)
 		)
-		(property "Value" "SMAJ20"
+		(property "Value" "SMAJ6.5A"
 			(at 39.37 149.86 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2552,7 +2520,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C115250"
+		(property "LCSC" "C123817"
 			(at 41.91 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -2751,7 +2719,7 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom no)
+		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
@@ -4104,7 +4072,7 @@
 				)
 			)
 		)
-		(property "Value" "SMAJ20"
+		(property "Value" "SMAJ6.5A"
 			(at 27.94 149.86 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4147,7 +4115,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C115250"
+		(property "LCSC" "C123817"
 			(at 30.48 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -4966,7 +4934,7 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom no)
+		(in_bom yes)
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
@@ -5263,82 +5231,6 @@
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/70a84e5a-da0c-48ec-8ad4-4d03aebcafb4"
 					(reference "#PWR003")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 149.86 69.85 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "f9768e2f-d5d3-42ee-a80d-fdb523dbd6d5")
-		(property "Reference" "TP9"
-			(at 149.86 62.992 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "HIL_FLT_N"
-			(at 149.86 64.77 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_Pad_D1.5mm"
-			(at 149.86 69.85 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 149.86 69.85 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "test point"
-			(at 149.86 69.85 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "79eac8bd-b1a4-4483-b499-8a07f58f36ba")
-		)
-		(instances
-			(project "llm-kicad"
-				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/70a84e5a-da0c-48ec-8ad4-4d03aebcafb4"
-					(reference "TP9")
 					(unit 1)
 				)
 			)
