@@ -64,3 +64,4 @@ build/
 *.tmp
 
 snapshot/
+data_cache/
