@@ -1,0 +1,198 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "359235dd-5d26-44dd-816b-e50cf2415bb3")
+	(paper "A4")
+	(lib_symbols)
+	(sheet
+		(at 15 110)
+		(size 120 55)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "17346305-f380-4811-8238-fefa6418501f")
+		(property "Sheetname" "DUT Interface"
+			(at 15 109.365 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "03_dut_interface.kicad_sch"
+			(at 15 165.635 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "llm-kicad"
+				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3"
+					(page "4")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 15 25)
+		(size 120 55)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "63913550-30a8-4967-88a9-f7dc130ab5c6")
+		(property "Sheetname" "Power and CC"
+			(at 15 24.365 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "01_power_cc.kicad_sch"
+			(at 15 80.635 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "llm-kicad"
+				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 155 110)
+		(size 120 55)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "70a84e5a-da0c-48ec-8ad4-4d03aebcafb4")
+		(property "Sheetname" "Test and Validation"
+			(at 155 109.365 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "04_test_validation.kicad_sch"
+			(at 155 165.635 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "llm-kicad"
+				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3"
+					(page "5")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 155 25)
+		(size 120 55)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0)
+		)
+		(uuid "8c554d7f-7a77-4246-8bc5-ac6fbdf743fc")
+		(property "Sheetname" "USB Hub and Control"
+			(at 155 24.365 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "02_usb_hub_control.kicad_sch"
+			(at 155 80.635 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "llm-kicad"
+				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3"
+					(page "3")
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)

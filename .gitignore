@@ -1,0 +1,66 @@
+# KiCAD
+# Temporary and backup files
+*.lck
+~*.kicad_sch
+~*.kicad_pcb
+*.bak
+*.kicad_pcb-bak
+*.kicad_sch-bak
+
+# Build outputs
+*.gbr
+*.gbo
+*.gbs
+*.gbl
+*.gtp
+*.gts
+*.drl
+*.xln
+*.zip
+gerber/
+output/
+fabrication/
+
+# KiCAD cache
+*.kicad_sch~
+*.kicad_pcb~
+__pycache__/
+.cache/
+
+# Simulation files
+*.net
+*.raw
+*.log
+*.cir
+
+# Generated documentation
+*.pdf
+*.png
+*.jpg
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Temporary project files
+.~*
+*.tmp
+
+snapshot/

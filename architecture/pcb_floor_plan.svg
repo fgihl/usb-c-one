@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="610" viewBox="0 0 900 610" role="img" aria-labelledby="title desc">
+  <title id="title">HIL USB-C Control preliminary PCB floor plan</title>
+  <desc id="desc">A top view of a 75 by 50 millimetre, four-layer USB-C hub board with J1 and J2 together on the left short edge, showing USB routing zones, the power path, control circuitry, and test pads.</desc>
+  <style>
+    text { font-family: sans-serif; fill: #142b3d; }
+    .small { font-size: 13px; }
+    .label { font-size: 15px; font-weight: 700; }
+    .title { font-size: 24px; font-weight: 700; }
+    .note { font-size: 14px; }
+    .board { fill: #edf4f1; stroke: #1b5e55; stroke-width: 3; }
+    .connector { fill: #ffd166; stroke: #815d00; stroke-width: 2; }
+    .usb { fill: #a9d6e5; stroke: #17627a; stroke-width: 2; }
+    .power { fill: #f7b7a3; stroke: #a5402d; stroke-width: 2; }
+    .control { fill: #c9d8a7; stroke: #4f6d2c; stroke-width: 2; }
+    .passive { fill: #e1c7e8; stroke: #745078; stroke-width: 2; }
+    .route { fill: none; stroke: #17627a; stroke-width: 5; stroke-linecap: round; }
+    .powerroute { fill: none; stroke: #a5402d; stroke-width: 7; stroke-linecap: round; }
+    .dim { fill: none; stroke: #4f6473; stroke-width: 1.5; }
+  </style>
+
+  <text x="450" y="34" text-anchor="middle" class="title">HIL USB-C Control: preliminary floor plan</text>
+  <text x="450" y="57" text-anchor="middle" class="note">Top-side placement, four layers, estimated outline: 75 x 50 mm</text>
+
+  <line x1="150" y1="86" x2="750" y2="86" class="dim" />
+  <line x1="150" y1="80" x2="150" y2="98" class="dim" />
+  <line x1="750" y1="80" x2="750" y2="98" class="dim" />
+  <text x="450" y="80" text-anchor="middle" class="label">75 mm</text>
+  <line x1="118" y1="120" x2="118" y2="520" class="dim" />
+  <line x1="110" y1="120" x2="128" y2="120" class="dim" />
+  <line x1="110" y1="520" x2="128" y2="520" class="dim" />
+  <text x="104" y="322" text-anchor="middle" class="label" transform="rotate(-90 104 322)">50 mm</text>
+
+  <rect x="150" y="120" width="600" height="400" rx="2" class="board" />
+
+  <rect x="138" y="135" width="53" height="88" rx="3" class="connector" />
+  <text x="164" y="169" text-anchor="middle" class="label">J2</text>
+  <text x="164" y="188" text-anchor="middle" class="small">5 V input</text>
+
+  <rect x="138" y="300" width="53" height="124" rx="3" class="connector" />
+  <text x="164" y="302" text-anchor="middle" class="label">J1</text>
+  <text x="164" y="321" text-anchor="middle" class="small">Pi / upstream</text>
+  <text x="164" y="339" text-anchor="middle" class="small">USB-C</text>
+
+  <rect x="709" y="258" width="53" height="124" rx="3" class="connector" />
+  <text x="735" y="302" text-anchor="middle" class="label">J3</text>
+  <text x="735" y="321" text-anchor="middle" class="small">DUT / downstream</text>
+  <text x="735" y="339" text-anchor="middle" class="small">USB-C</text>
+
+  <rect x="202" y="329" width="48" height="42" rx="3" class="usb" />
+  <text x="226" y="347" text-anchor="middle" class="label">U9</text>
+  <text x="226" y="363" text-anchor="middle" class="small">ESD</text>
+  <rect x="272" y="225" width="105" height="105" rx="4" class="usb" />
+  <text x="324" y="269" text-anchor="middle" class="label">U1 CH334F</text>
+  <text x="324" y="289" text-anchor="middle" class="small">USB 2.0 hub</text>
+  <rect x="282" y="335" width="82" height="27" rx="3" class="passive" />
+  <text x="323" y="353" text-anchor="middle" class="small">Y1 + reset</text>
+
+  <rect x="542" y="273" width="74" height="54" rx="3" class="usb" />
+  <text x="579" y="295" text-anchor="middle" class="label">U5</text>
+  <text x="579" y="313" text-anchor="middle" class="small">USB switch</text>
+  <rect x="642" y="278" width="48" height="42" rx="3" class="usb" />
+  <text x="666" y="296" text-anchor="middle" class="label">U10</text>
+  <text x="666" y="312" text-anchor="middle" class="small">ESD</text>
+  <path d="M191 350 H202 M250 350 V299 H272" class="route" />
+  <path d="M377 299 H542 M616 299 H642 M690 299 H709" class="route" />
+  <text x="466" y="286" text-anchor="middle" class="small">90 ohm differential pair corridor</text>
+
+  <rect x="310" y="145" width="92" height="60" rx="4" class="power" />
+  <text x="356" y="169" text-anchor="middle" class="label">U14</text>
+  <text x="356" y="188" text-anchor="middle" class="small">priority mux</text>
+  <rect x="546" y="167" width="92" height="63" rx="4" class="power" />
+  <text x="592" y="193" text-anchor="middle" class="label">U4</text>
+  <text x="592" y="212" text-anchor="middle" class="small">J3 eFuse</text>
+  <rect x="646" y="171" width="43" height="50" rx="3" class="power" />
+  <text x="667" y="192" text-anchor="middle" class="small">bulk</text>
+  <text x="667" y="208" text-anchor="middle" class="small">caps</text>
+  <path d="M191 179 H310 M402 175 H546 M638 198 H709" class="powerroute" />
+  <path d="M191 400 H260 V205 H310" class="powerroute" />
+  <text x="218" y="421" text-anchor="middle" class="small">VBUS_UP fallback</text>
+  <text x="470" y="249" text-anchor="middle" class="small">VSYS</text>
+  <text x="672" y="244" text-anchor="middle" class="small">VBUS_HIL</text>
+
+  <rect x="452" y="348" width="74" height="53" rx="3" class="control" />
+  <text x="489" y="370" text-anchor="middle" class="label">U2</text>
+  <text x="489" y="388" text-anchor="middle" class="small">CP2102N</text>
+  <rect x="365" y="359" width="62" height="45" rx="3" class="control" />
+  <text x="396" y="378" text-anchor="middle" class="label">U8</text>
+  <text x="396" y="395" text-anchor="middle" class="small">3.3 V LDO</text>
+  <rect x="572" y="352" width="61" height="45" rx="3" class="control" />
+  <text x="602" y="371" text-anchor="middle" class="label">U6</text>
+  <text x="602" y="388" text-anchor="middle" class="small">Rp buffer</text>
+  <rect x="643" y="351" width="49" height="48" rx="3" class="passive" />
+  <text x="667" y="371" text-anchor="middle" class="small">Rp</text>
+  <text x="667" y="388" text-anchor="middle" class="small">network</text>
+  <rect x="540" y="413" width="95" height="40" rx="3" class="power" />
+  <text x="587" y="431" text-anchor="middle" class="small">Q2/Q3 + R36</text>
+  <text x="587" y="446" text-anchor="middle" class="small">discharge</text>
+
+  <rect x="204" y="478" width="487" height="21" rx="3" class="passive" />
+  <text x="447" y="493" text-anchor="middle" class="small">test pads: GND, VBUS_UP, VBUS_PWR, VSYS, 3V3, VBUS_HIL, EN, FLT, sense</text>
+  <text x="159" y="544" class="note">L1: components and controlled-impedance USB</text>
+  <text x="159" y="565" class="note">L2: uninterrupted ground plane</text>
+  <text x="468" y="544" class="note">L3: separate VSYS and VBUS_HIL copper areas</text>
+  <text x="468" y="565" class="note">L4: low-speed control and sense routing</text>
+</svg>
