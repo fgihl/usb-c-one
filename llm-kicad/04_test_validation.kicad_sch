@@ -3947,12 +3947,6 @@
 			(uuid "948cc54f-2fb1-4988-b1c1-1286c4e94925")
 		)
 		(instances
-			(project "04_test_validation"
-				(path "/2dbd5197-1836-4a79-8707-ad62451c26e9"
-					(reference "#PWR001")
-					(unit 1)
-				)
-			)
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/70a84e5a-da0c-48ec-8ad4-4d03aebcafb4"
 					(reference "#PWR001")
@@ -4838,12 +4832,6 @@
 			(uuid "fadaa993-1902-4830-bfe7-1d60407b06d5")
 		)
 		(instances
-			(project "04_test_validation"
-				(path "/2dbd5197-1836-4a79-8707-ad62451c26e9"
-					(reference "#PWR002")
-					(unit 1)
-				)
-			)
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/70a84e5a-da0c-48ec-8ad4-4d03aebcafb4"
 					(reference "#PWR002")

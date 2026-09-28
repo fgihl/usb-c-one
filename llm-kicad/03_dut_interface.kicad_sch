@@ -3614,12 +3614,6 @@
 					(unit 1)
 				)
 			)
-			(project "03_dut_interface"
-				(path "/9b12f639-7058-46bc-b411-401dc094627f"
-					(reference "U6")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -3788,12 +3782,6 @@
 					(unit 1)
 				)
 			)
-			(project "03_dut_interface"
-				(path "/9b12f639-7058-46bc-b411-401dc094627f"
-					(reference "R49")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -3925,12 +3913,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/17346305-f380-4811-8238-fefa6418501f"
-					(reference "J3")
-					(unit 1)
-				)
-			)
-			(project "03_dut_interface"
-				(path "/9b12f639-7058-46bc-b411-401dc094627f"
 					(reference "J3")
 					(unit 1)
 				)
@@ -4099,12 +4081,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/17346305-f380-4811-8238-fefa6418501f"
-					(reference "R5")
-					(unit 1)
-				)
-			)
-			(project "03_dut_interface"
-				(path "/9b12f639-7058-46bc-b411-401dc094627f"
 					(reference "R5")
 					(unit 1)
 				)
@@ -4435,12 +4411,6 @@
 					(unit 1)
 				)
 			)
-			(project "03_dut_interface"
-				(path "/9b12f639-7058-46bc-b411-401dc094627f"
-					(reference "R48")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -4611,12 +4581,6 @@
 					(unit 1)
 				)
 			)
-			(project "03_dut_interface"
-				(path "/9b12f639-7058-46bc-b411-401dc094627f"
-					(reference "C26")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -4727,12 +4691,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/17346305-f380-4811-8238-fefa6418501f"
-					(reference "U5")
-					(unit 1)
-				)
-			)
-			(project "03_dut_interface"
-				(path "/9b12f639-7058-46bc-b411-401dc094627f"
 					(reference "U5")
 					(unit 1)
 				)
@@ -4985,12 +4943,6 @@
 					(unit 1)
 				)
 			)
-			(project "03_dut_interface"
-				(path "/9b12f639-7058-46bc-b411-401dc094627f"
-					(reference "C27")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -5102,12 +5054,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/17346305-f380-4811-8238-fefa6418501f"
-					(reference "U10")
-					(unit 1)
-				)
-			)
-			(project "03_dut_interface"
-				(path "/9b12f639-7058-46bc-b411-401dc094627f"
 					(reference "U10")
 					(unit 1)
 				)

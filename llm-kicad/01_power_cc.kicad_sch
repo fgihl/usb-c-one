@@ -5808,12 +5808,6 @@
 					(unit 1)
 				)
 			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
-					(reference "R27")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -6572,12 +6566,6 @@
 					(unit 1)
 				)
 			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
-					(reference "C10")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -7092,12 +7080,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/63913550-30a8-4967-88a9-f7dc130ab5c6"
-					(reference "R28")
-					(unit 1)
-				)
-			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
 					(reference "R28")
 					(unit 1)
 				)
@@ -7641,12 +7623,6 @@
 					(unit 1)
 				)
 			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
-					(reference "C9")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -7979,12 +7955,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/63913550-30a8-4967-88a9-f7dc130ab5c6"
-					(reference "R30")
-					(unit 1)
-				)
-			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
 					(reference "R30")
 					(unit 1)
 				)
@@ -8502,12 +8472,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/63913550-30a8-4967-88a9-f7dc130ab5c6"
-					(reference "R31")
-					(unit 1)
-				)
-			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
 					(reference "R31")
 					(unit 1)
 				)
@@ -9830,12 +9794,6 @@
 					(unit 1)
 				)
 			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
-					(reference "C11")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -10014,12 +9972,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/63913550-30a8-4967-88a9-f7dc130ab5c6"
-					(reference "C13")
-					(unit 1)
-				)
-			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
 					(reference "C13")
 					(unit 1)
 				)
@@ -11545,12 +11497,6 @@
 					(unit 1)
 				)
 			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
-					(reference "C12")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -12790,12 +12736,6 @@
 					(unit 1)
 				)
 			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
-					(reference "R34")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -13002,12 +12942,6 @@
 					(unit 1)
 				)
 			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
-					(reference "C14")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -13094,12 +13028,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/63913550-30a8-4967-88a9-f7dc130ab5c6"
-					(reference "R29")
-					(unit 1)
-				)
-			)
-			(project "01_power_cc"
-				(path "/5ebe429a-b946-41dc-9923-95c7132042e8"
 					(reference "R29")
 					(unit 1)
 				)

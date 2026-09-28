@@ -5908,12 +5908,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "R2")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -6085,12 +6079,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "C24")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -6179,12 +6167,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/8c554d7f-7a77-4246-8bc5-ac6fbdf743fc"
-					(reference "C20")
-					(unit 1)
-				)
-			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
 					(reference "C20")
 					(unit 1)
 				)
@@ -6431,12 +6413,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/8c554d7f-7a77-4246-8bc5-ac6fbdf743fc"
-					(reference "R43")
-					(unit 1)
-				)
-			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
 					(reference "R43")
 					(unit 1)
 				)
@@ -6836,12 +6812,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "U1")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -7093,12 +7063,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "Q6")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -7267,12 +7231,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "R1")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -7361,12 +7319,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/8c554d7f-7a77-4246-8bc5-ac6fbdf743fc"
-					(reference "C25")
-					(unit 1)
-				)
-			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
 					(reference "C25")
 					(unit 1)
 				)
@@ -7773,12 +7725,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "R45")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -8171,12 +8117,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "C19")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -8506,12 +8446,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "Q7")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -8623,12 +8557,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/8c554d7f-7a77-4246-8bc5-ac6fbdf743fc"
-					(reference "U9")
-					(unit 1)
-				)
-			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
 					(reference "U9")
 					(unit 1)
 				)
@@ -9194,12 +9122,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "U2")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -9541,12 +9463,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "C21")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -9635,12 +9551,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/8c554d7f-7a77-4246-8bc5-ac6fbdf743fc"
-					(reference "C23")
-					(unit 1)
-				)
-			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
 					(reference "C23")
 					(unit 1)
 				)
@@ -9735,12 +9645,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "R46")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -9827,12 +9731,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/8c554d7f-7a77-4246-8bc5-ac6fbdf743fc"
-					(reference "R44")
-					(unit 1)
-				)
-			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
 					(reference "R44")
 					(unit 1)
 				)
@@ -10082,12 +9980,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/8c554d7f-7a77-4246-8bc5-ac6fbdf743fc"
-					(reference "C22")
-					(unit 1)
-				)
-			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
 					(reference "C22")
 					(unit 1)
 				)
@@ -10495,12 +10387,6 @@
 					(unit 1)
 				)
 			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
-					(reference "R47")
-					(unit 1)
-				)
-			)
 		)
 	)
 	(symbol
@@ -10632,12 +10518,6 @@
 		(instances
 			(project "llm-kicad"
 				(path "/359235dd-5d26-44dd-816b-e50cf2415bb3/8c554d7f-7a77-4246-8bc5-ac6fbdf743fc"
-					(reference "J1")
-					(unit 1)
-				)
-			)
-			(project "02_usb_hub_control"
-				(path "/a947aa45-9f94-47ed-ae6f-af75f2c327b5"
 					(reference "J1")
 					(unit 1)
 				)
