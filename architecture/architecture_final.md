@@ -104,19 +104,19 @@ A full 3 A DUT requires at least 3.115 A before connector/cable headroom. The sp
 
 - **J1/J3:** TYPE-C-31-M-12, 16-pin USB 2.0 receptacle with four through-hole shell pegs, LCSC C165948 (archived-verified; recheck stock before order). Join A6/B6 as D+ and A7/B7 as D-. SBU1/SBU2 are explicitly NC with no routed stub and no ESD device because no alternate mode is supported; this is an accepted bench-only ESD limitation.
 - **J2:** TYPE-C-31-M-17, six-pin power-only USB-C receptacle, LCSC C283540 (archived-verified; recheck stock). It has VBUS, GND and CC only; no D+/D- path exists to invoke proprietary charging protocols.
-- **U14:** TPS2121RUXR (Texas Instruments), LCSC C485916, VQFN-HR-12 2 x 2.5 mm, Extended, $1.044 and 37,201 stock in the Konnect JLC cache. Connect J1 to IN1 (pin 7) and J2 to IN2 (pin 2). Strap PR1 (pin 6) to GND and CP2 (pin 3) to J2 VBUS; CP2 above its 1.06 V reference and PR1 below it explicitly select IN2 whenever J2 is valid. With J2 absent or invalid, IN1 supplies the output. Tie OV1/OV2 (pins 5/4) to GND because inputs are qualified 5 V; connect ST (pin 9) to a 10 kOhm pull-up to +3V3 and GPIO.7/DNP test pad for source-status observation. Set ILIM (pin 10) and SS (pin 11) per the TI equations. The 56 mOhm integrated path and reverse-current blocking prevent J1 from sharing the J2 HIL load. Do not substitute a plain ideal-diode OR circuit.
+- **U14:** TPS2121RUXR (Texas Instruments), LCSC C485916, VQFN-HR-12 2 x 2.5 mm, Extended, $1.044 and 37,201 stock in the Konnect JLC cache. Connect J1 to IN1 (pin 7) and J2 to IN2 (pin 2). Strap PR1 (pin 6) to GND and CP2 (pin 3) to J2 VBUS; CP2 above its 1.06 V reference and PR1 below it explicitly select IN2 whenever J2 is valid. With J2 absent or invalid, IN1 supplies the output. Tie OV1/OV2 (pins 5/4) to GND because inputs are qualified 5 V; connect ST (pin 9) to a 10 kOhm pull-up to +3V3 for source-status observation. Note there is no spare control line for it: all seven CP2102N GPIO are allocated (§6.1) and the QFN28 package has no GPIO.7, so ST is observable only by probing the R33 pad. Set ILIM (pin 10) and SS (pin 11) per the TI equations. The 56 mOhm integrated path and reverse-current blocking prevent J1 from sharing the J2 HIL load. Do not substitute a plain ideal-diode OR circuit.
 - U14 is the only isolation element between J1 and J2. Its specified reverse blocking is verified by prototype test, but component failure is not guaranteed open-circuit. This attended, qualified-fixture board is not an independent-source isolator. Label J1/J2 accordingly and test J2 back-voltage with J1 active and vice versa.
 - **U8:** TLV76733DRVR, LCSC C2848334 (archived-verified; recheck stock). IN=VSYS, EN=IN, OUT=+3V3, FB/SNS=OUT. C16 1 uF at IN; C17 10 uF/25 V and C18 100 nF at OUT.
-- Add 100 kOhm / 100 kOhm dividers from VBUS_UP and VBUS_PWR to GPIO.3 and GPIO.1. Each provides 2.5 V at a valid 5 V input. They are informational and do not control U14.
+- Add 100 kOhm / 100 kOhm dividers from VBUS_UP to GPIO.5 and from VBUS_PWR to GPIO.3. Each provides 2.5 V at a valid 5 V input. They are informational and do not control U14.
 
 ### 5.2 HIL VBUS and discharge
 
 - **U4:** TPS259470LRPWR, LCSC C3662793 (archived-verified; recheck stock). IN=VSYS, OUT=VBUS_HIL. C9 10 uF + C10 100 nF at IN. For output transient performance fit C11/C12 as two 10 uF/0805/25 V X5R capacitors in parallel plus C13 100 nF; total nominal bulk is 20 uF. Validate <100 mV sag for a 0-to-3 A load step.
-- EN/UVLO is `EN_HIL`: CP2102N GPIO.4 -> R27 1 kOhm -> EN; R28 100 kOhm EN-to-GND. This yields a deterministic disabled state before GPIO configuration.
+- EN/UVLO is `EN_HIL`: CP2102N GPIO.6 (pin 20, configured push-pull) -> R27 1 kOhm -> EN; R28 10 kOhm EN-to-GND. This yields a deterministic disabled state before GPIO configuration. R28 doubles as the 10 kOhm pull-down the CP2102N datasheet requires, because all pins float high during a device reset.
 - ILM: R31=931 Ohm, 0402, 0.1%, LCSC C852955. The TPS259470L data sheet specifies 3.96/4.452/4.84 A min/typ/max at RILM=750 Ohm. Scaling that specified band by $750/(931 \times 1.001)$ and $750/(931 \times 0.999)$ gives 3.19-3.90 A; nominal is 3.59 A. This retains a 3 A DUT margin while bounding maximum current below 4.0 A. Validate the trip response and thermal behavior on prototype, but no further current-limit tolerance derivation is pending.
-- OVLO: R29 49.9 kOhm (VSYS to OVLO) and R30 12 kOhm (OVLO to GND), yielding 6.19 V rising / 5.67 V falling. SMAJ6.5A has 6.5 V standoff, not a 6.5 V clamp; it does not suppress a 6.19 V OVLO trip. DVDT C14=1 nF. ITIMER open. FLT has R34 10 kOhm pull-up to +3V3 and reaches GPIO.0.
+- OVLO: R29 49.9 kOhm (VSYS to OVLO) and R30 12 kOhm (OVLO to GND), yielding 6.19 V rising / 5.67 V falling. SMAJ6.5A has 6.5 V standoff, not a 6.5 V clamp; it does not suppress a 6.19 V OVLO trip. DVDT C14=1 nF. ITIMER open. FLT has R34 10 kOhm pull-up to +3V3 and reaches GPIO.0. U4 is the **latch-off (-L)** variant, so a thermal or ILM-short fault stays latched until explicitly cleared — the recovery contract is in §6.5. There is deliberately **no supply-side UVLO divider** on EN/UVLO (accepted risk, §10).
 - Discharge: Q2 and Q3 are BSS138P,215 (C75547, SOT-23, Extended; 463,528 stock in the Konnect cache). R36 470 Ohm/0805 is from VBUS_HIL to Q3 drain; Q3 source is GND. Q3 gate has R37 100 kOhm pull-up to +3V3. When EN_HIL is high, Q2 conducts and pulls Q3 gate low, turning Q3 off so discharge is disabled. When EN_HIL is low, Q2 releases the gate and R37 turns Q3 on, enabling discharge. Q3 on resistance is negligible compared with 470 Ohm; the nominal 20 uF output discharges from 5 V to 0.8 V in 17 ms. `hil_off()` must report a discharge fault if its 150 ms confirmation timeout expires.
-- `VBUS_HIL_SNS`: R38 10 kOhm from VBUS_HIL, R39 18 kOhm to GND, and R40 1 kOhm series to GPIO.2. At 5 V, GPIO sees 3.21 V.
+- `VBUS_HIL_SNS`: R38 10 kOhm from VBUS_HIL, R39 18 kOhm to GND, and R40 1 kOhm series to GPIO.1 (pin 18). At 5 V, GPIO sees 3.21 V.
 
 ### 5.3 USB hub, control and switched data
 
@@ -129,22 +129,58 @@ A full 3 A DUT requires at least 3.115 A before connector/cable headroom. The sp
 
 - J1/J2 each have Rd: R1-R4, 5.1 kOhm from each CC pin to GND. This establishes a Type-C sink and makes a compliant J2 source apply vSafe5V.
 - **U6:** SN74LVC1G125DBVR, LCSC C23654 (archived-verified; recheck stock). VCC=+3V3 with 100 nF; A=+3V3; OE#=`HIL_CC_EN_N`; Y=`VRP_3A`. It must offer power-off output isolation.
-- From `VRP_3A` to J3 CC1 fit R5=33 kOhm in parallel with R7=5.6 kOhm; to J3 CC2 fit R6=33 kOhm in parallel with R8=5.6 kOhm. Each leg is 4.79 kOhm and yields about 1.70 V with a 5.1 kOhm Rd at 3.3 V, advertising 3 A. Do not fit auxiliary 1 Mohm CC pull-ups: U6 output isolation leaves the line genuinely open when disabled.
+- From `VRP_3A` to J3 CC1 fit R5=4.7 kOhm; to J3 CC2 fit R6=4.7 kOhm (LCSC C25900, 0402, Basic). A single 4.7 kOhm from a buffered 3.3 V is the USB Type-C Table 4-24 3.3 V-column value for a 3 A advertisement. There is no R7/R8 placement option: the earlier 33 kOhm || 5.6 kOhm split was never built. Specify 1% parts and record the tolerance in the BOM (the specification's 3.3 V Rp leg is 4.7 kOhm +/-5%). Do not fit auxiliary 1 Mohm CC pull-ups: U6 output isolation leaves the line genuinely open when disabled.
 - There is no PD controller, BC1.2 detector, VCONN or dynamic Rp. J3 advertises 3 A even in Pi fallback mode; software must prevent inappropriate loads.
 
 ## 6. Control interface and Linux contract
 
-| CP2102N pin | Net | Mode | Active state | Default |
-|---:|---|---|---|---|
-| GPIO.4 (22) | HIL_VBUS_EN | push-pull output | high enables U4 | low |
-| GPIO.5 (21) | HIL_DATA_EN_N | open-drain output | low enables U5 | released / high |
-| GPIO.6 (20) | HIL_CC_EN_N | open-drain output | low enables U6 Rp | released / high |
-| GPIO.0 (19) | HIL_FLT_N | input | low = U4 fault | pull-up |
-| GPIO.1 (18) | VBUS_PWR_SNS | input | high = J2 present | divider |
-| GPIO.2 (17) | VBUS_HIL_SNS | input | high = HIL VBUS present | divider |
-| GPIO.3 (16) | VBUS_UP_SNS | input | high = J1 present | divider |
+### 6.1 GPIO assignment (as built, and routing-verified)
 
-`VBUS_PWR_SNS`: R70=100 kOhm from VBUS_PWR, R71=100 kOhm to GND, R72=1 kOhm series to GPIO.1. `VBUS_UP_SNS`: R73=100 kOhm from VBUS_UP, R74=100 kOhm to GND, R75=1 kOhm series to GPIO.3. Both use 3.3 V-tolerant GPIO inputs only.
+All seven CP2102N GPIO pins on the QFN28 package are **bidirectional** — Rev 1.5
+pin table: "Digital Input/Output. General Purpose I/O" for GPIO.0-GPIO.6 — and
+every one supports both output modes, §4.3.3: *"Each pin has two options for the
+output mode: push-pull and open-drain."* **There is therefore no input/output
+constraint on which signal goes on which pin.** Only the per-pin *mode* in the
+configuration image has to follow the signal, not the pin number.
+
+The assignment below is what the schematic and board implement. It was also
+tested as a routing question: scored against the placed board, it gives **zero
+crossings** in the U2 fan-out (the minimum achievable) and a total first-hop
+length within 1% (0.64 mm of 52 mm) of the best of all 5040 permutations. The
+previous revision of this table was wrong on six of seven pins, and its
+arrangement measured 2.75 mm longer **with two crossings** — so the table was
+corrected to the hardware, not the hardware to the table.
+
+| GPIO | Pin | Net | Mode | I/O | Active state | Default |
+|---|---:|---|---|---|---|---|
+| GPIO.0 | 19 | `HIL_FLT_N` | digital input | in | low = U4 fault | pull-up |
+| GPIO.1 | 18 | `VBUS_HIL_SNS` | digital input | in | high = HIL VBUS present | divider |
+| GPIO.2 | 17 | `HIL_CC_EN_N` | output, open-drain | out | low enables U6 Rp | released / high |
+| GPIO.3 | 16 | `VBUS_PWR_SNS` | digital input | in | high = J2 present | divider |
+| GPIO.4 | 22 | `HIL_DATA_EN_N` | output, open-drain | out | low enables U5 | released / high |
+| GPIO.5 | 21 | `VBUS_UP_SNS` | digital input | in | high = J1 present | divider |
+| GPIO.6 | 20 | `HIL_VBUS_EN` | output, **push-pull** | out | high enables U4 | low |
+
+Three points that the mode column depends on:
+
+- `HIL_VBUS_EN` **must be push-pull.** It drives `EN_HIL` through R27 = 1 kOhm
+  with R28 = 10 kOhm to GND, so it has to actively source current to exceed the
+  TPS259470L's 1.20 V UVLO threshold. As an open-drain output it could not drive
+  high and U4 would never enable.
+- `HIL_DATA_EN_N` and `HIL_CC_EN_N` are open-drain and rely on R48 = 100 kOhm
+  (U5 OE#) and R49 = 100 kOhm (U6 OE#) respectively, so their released state is
+  high = disabled. Push-pull would also work; open-drain is used so the reset
+  default is already the safe state.
+- All four sense pins are plain inputs into 3.3 V-tolerant dividers. GPIO.0-GPIO.3
+  have alternate functions (TXT / RXT / RS485 / WAKEUP on QFN28) — all unused and
+  to be left disabled. GPIO.4-GPIO.6 have no alternate function.
+
+`VBUS_PWR_SNS`: R70 = 100 kOhm from VBUS_PWR, R71 = 100 kOhm to GND, R72 = 1 kOhm
+series to GPIO.3. `VBUS_UP_SNS`: R73 = 100 kOhm from VBUS_UP, R74 = 100 kOhm to
+GND, R75 = 1 kOhm series to GPIO.5. `VBUS_HIL_SNS` is in §5.2. All four use
+3.3 V-tolerant GPIO inputs only.
+
+### 6.2 Control truth table
 
 | VBUS_EN | CC_EN_N | DATA_EN_N | J3 state |
 |---:|---:|---:|---|
@@ -153,27 +189,125 @@ A full 3 A DUT requires at least 3.115 A before connector/cable headroom. The sp
 | 1 | 0 | 1 | VBUS and Rp present; data open |
 | 1 | 0 | 0 | Connected: VBUS, Rp and data present |
 
-Use one persistent service to own GPIO lines. It must write default-off values when requesting the lines.
+### 6.3 Configuration image (`cp2102n_config.hex`)
+
+Generate the image from the table in 6.1 — and ultimately from the **netlist**,
+never from this document's prose, because a prose-to-netlist drift on exactly
+this table is what the pin-permutation defect was. In Xpress Configurator:
+
+| Setting | Value |
+|---|---|
+| GPIO.0, GPIO.1, GPIO.3, GPIO.5 | digital input |
+| GPIO.2, GPIO.4 | digital output, **open-drain**, latch = 1 |
+| GPIO.6 | digital output, **push-pull**, latch = 0 |
+| GPIO.0-GPIO.3 alternate functions | disabled (TXT / RXT / RS485 / WAKEUP unused) |
+| Suspend behaviour | leave at the default (pin latches hold during USB suspend) |
+| Power | self-powered, max power 100 mA |
+| UART / modem / charging pins | unused — RXD, TXD, RTS, CTS, DTR, DSR, DCD, RI/CLK, CHREN, CHR0/1 are all unconnected |
+
+Release artifact: the generated `.hex`, its SHA-256, and the serial-number
+policy. Never allow blank parts into PCBA; program and read back every unit
+before final test.
+
+### 6.4 Control service
+
+Use one persistent service to own the GPIO lines. It must request them with the
+default-off values already in the table, and must write those values again at
+startup before enabling anything.
 
 ```python
-# Line values use active-low names for data and CC.
+# CP2102N on a cp210x gpiochip. Line index == GPIO number; confirm with
+# `gpioinfo` that the chip labelled cp210x exposes seven lines.
+LINE = {"hil_flt_n": 0,   # GPIO.0 pin 19  input
+        "vbus_hil_sns": 1, # GPIO.1 pin 18  input
+        "cc_en_n": 2,      # GPIO.2 pin 17  open-drain output
+        "vbus_pwr_sns": 3, # GPIO.3 pin 16  input
+        "data_en_n": 4,    # GPIO.4 pin 22  open-drain output
+        "vbus_up_sns": 5,  # GPIO.5 pin 21  input
+        "vbus_en": 6}      # GPIO.6 pin 20  push-pull output
+
+
 def hil_off():
+    """Disconnected state. Returns only once VBUS has actually collapsed."""
     data_en_n.set(1); sleep(0.020)
-    cc_en_n.set(1); sleep(0.020)
-  vbus_en.set(0)
-  if not wait_until(lambda: not vbus_hil_sns.get(), timeout=0.150):
-    raise RuntimeError("VBUS discharge timeout")
+    cc_en_n.set(1);   sleep(0.020)
+    vbus_en.set(0)
+    if not wait_until(lambda: not vbus_hil_sns.get(), timeout=0.150):
+        raise RuntimeError("VBUS discharge timeout")
+
 
 def hil_on(high_current=False):
     if high_current and not vbus_pwr_sns.get():
         raise RuntimeError("qualified J2 source required")
     cc_en_n.set(0)
-  sleep(0.010)  # Allow Rp to settle before presenting VBUS.
+    sleep(0.010)          # let Rp settle before presenting VBUS
     vbus_en.set(1)
     wait_until(lambda: vbus_hil_sns.get() and hil_flt_n.get(), timeout=1.0)
-    sleep(0.040)
+    sleep(0.040)          # inrush/ramp settles before closing the data path
     data_en_n.set(0)
 ```
+
+A fault-recovery path is also required — see §6.5.
+
+### 6.5 Fault latch-off and recovery (U4)
+
+U4 is the **TPS259470L**, the latch-off variant. Per the datasheet (Table 7-3) some
+faults latch internally and stay latched until explicitly cleared, while others do
+not:
+
+| Event | Response | Latched? | FLT pin |
+|---|---|---|---|
+| Overtemperature (TJ >= TSD) | Shutdown | **Yes** | low |
+| ILM pin shorted to GND | Shutdown | **Yes** | low, after tITIMER |
+| Undervoltage (UVP or UVLO) | Shutdown | No | high |
+| Input overvoltage | Shutdown | No | high |
+| Persistent overcurrent | Current limit | No | low, after tITIMER |
+| ILM pin open (steady state) | Shutdown | No | low, after tITIMER |
+| Output short to GND | Current limit | No | high |
+| Reverse current | Reverse-current blocking | No | low |
+
+Because **ITIMER is open**, a sustained overcurrent is *limited* rather than latched:
+the part sits in current limit and only latches if it then overheats. So on this
+board the latched faults to design for are **overtemperature** and **ILM shorted to
+GND**.
+
+**How a latched fault is cleared** (Table 7-2 and §7.3.9). The die must first fall
+below `TSD - TSD_HYS`, and then **either**:
+
+1. VIN cycled to 0 V and back above `VUVP(R)` (~2.53 V), or
+2. **the EN/UVLO pin taken below `VSD(F)`** — min 0.45 V, max 0.74 V.
+
+**The trap, in the datasheet's own words:** *"During a latched fault, pulling the
+EN/UVLO just below the UVLO threshold has no impact on the device."* The UVLO falling
+threshold is `VUVLO(F)` = 1.09 V typ, which is **above** `VSD(F)` (0.74 V max). Taking
+EN low to a level that merely crosses the UVLO threshold leaves the part latched, and
+so does releasing it to high impedance: at high impedance `EN_HIL` sits at the
+R27/R28 divider level, which is above `VSD(F)`. The low must be a **hard low, below
+0.74 V with margin** — target below 0.45 V so it holds across the full tolerance band.
+
+This design can meet that: `HIL_VBUS_EN` (GPIO.6, push-pull) drives `EN_HIL` through
+R27 = 1 kOhm with R28 = 10 kOhm to GND, so driving the line low pulls `EN_HIL` to
+about 0 V.
+
+**Software contract:**
+
+- `hil_off()` already drives `HIL_VBUS_EN` low, so it *is* the recovery primitive. Its
+  low period must be explicit — hold low for at least 10 ms — rather than left to
+  call ordering.
+- Provide `hil_fault_clear()` = the EN-low hold followed by re-enable. After a thermal
+  or ILM-short fault, FLT stays low until this is done, so treat "FLT low and
+  `VBUS_HIL_SNS` low" as **latched — needs a clear**.
+- Do **not** auto-retry in a tight loop while the cause persists. A latched thermal
+  fault means the DUT is overloading the fixture or the board is too hot. Report it
+  and require an explicit command, or retry with a bounded back-off that is recorded.
+- Clearing the latch also **releases FLT**. FLT returning high is not evidence that the
+  load is healthy — re-check `VBUS_HIL_SNS` and the actual current before resuming.
+- While latched, `VBUS_HIL` is off, so `VBUS_HIL_SNS` reads low. Software must not
+  report that as "DUT unplugged" when it is the consequence of its own fault latch.
+- The Pi cannot power-cycle `VSYS` (option 1 above) without dropping the whole fixture,
+  so the EN toggle is the only practical recovery path — which is exactly why the
+  hard-low requirement matters. Confirm it on the prototype (mandatory prototype
+  test 5).
 
 ## 7. Sequences and fail-safe states
 
@@ -255,29 +389,34 @@ sequenceDiagram
 
 | Group | Approx. qty | Cost at qty 10 | Status |
 |---|---:|---:|---|
-| ICs, connectors, TVS, FETs, LEDs | 20 | $8-11 | Includes Q2/Q3/Q6/Q7; all core entries were rechecked in the Konnect cache below |
-| Resistors | 38 | about $0.35 | 0402 except 470 Ohm discharge 0805 |
-| Capacitors | 25 | about $0.90 | Include 20 uF output bulk and VSYS bulk |
-| Total | about 80 placements | $10-14 plus assembly fees | Provisional |
+| ICs, connectors, TVS, FETs, LEDs, crystal | 24 | $8-11 | Includes Q2/Q3/Q6/Q7; all core entries were rechecked in the Konnect cache below |
+| Resistors | 36 | about $0.35 | 0402 except R36 470 Ohm 0805 |
+| Capacitors | 23 | about $0.90 | Includes 20 uF output bulk and VSYS bulk |
+| Total | 83 BOM placements (+14 test points, +4 mounting holes) | $10-14 plus assembly fees | 35 unique LCSC codes |
+
+The passive table below is generated **from the design**, grouped by part code, and was reconciled against the schematic on 2026-09-28. The earlier revision listed two parts that do not exist (R7/R8) and carried pre-fix values for R28, R34, R5/R6, C23/C25 and C5 — see the review report's H4/H5/M2/M11 findings.
 
 | Passive / refdes | Value and package | LCSC | Qty |
 |---|---|---|---:|
-| R1-R4 | 5.1 kOhm, 0402, 1% | C25905 | 4 |
-| R5/R6 | 33 kOhm, 0402, 1% | C25779 | 2 |
-| R7/R8 | 5.6 kOhm, 0402, 1% | C25908 | 2 |
-| R27/R34/R38/R40/R72/R75 and LED resistors | 1 kOhm, 0402, 1% | C11702 | 9 |
-| R28/R37/R45/R46/R70/R71/R73/R74 | 100 kOhm, 0402, 1% | C25741 | 8 |
+| R1-R4 | 5.1 kOhm, 0402, 1% (J1/J2 Rd) | C25905 | 4 |
+| R5/R6 | 4.7 kOhm, 0402, 1% (J3 Rp) | C25900 | 2 |
+| R27/R40/R47/R50/R51/R52/R72/R75 | 1 kOhm, 0402, 1% | C11702 | 8 |
+| R28/R33/R34/R35/R38 | 10 kOhm, 0402, 1% | C25744 | 5 |
+| R37/R45/R46/R48/R49/R70/R71/R73/R74 | 100 kOhm, 0402, 1% | C25741 | 9 |
 | R29 | 49.9 kOhm, 0402, 1% | C25897 | 1 |
 | R30 | 12 kOhm, 0402, 1% | C25752 | 1 |
 | R31 | 931 Ohm, 0402, 0.1% | C852955 | 1 |
+| R32 | 24 kOhm, 0402, 1% | C25769 | 1 |
 | R36 | 470 Ohm, 0805 | C17710 | 1 |
-| R38/R39/R43/R44 | 10 kOhm / 18 kOhm / 22 kOhm / 47 kOhm, 0402, 1% | C25744 / C25762 / C25768 / C25792 | 4 |
-| C1/C3 | 4.7 uF, 0805, 25 V X5R | C1779 | 2 |
+| R39 | 18 kOhm, 0402, 1% | C25762 | 1 |
+| R43 | 22 kOhm, 0402, 1% | C25768 | 1 |
+| R44 | 47 kOhm, 0402, 1% | C25792 | 1 |
+| C1/C3/C23/C25 | 4.7 uF, 0805, 25 V X5R | C1779 | 4 |
 | C9/C11/C12/C17 | 10 uF, 0805, 25 V X5R | C15850 | 4 |
-| C5/C37 | 47 uF, 1206, 10 V X5R | C96123 | 2 |
+| C5 | 47 uF, 1206, 10 V X5R on a 1210 land — **the value text says 100 uF; see report M11** | C96123 | 1 |
+| C6/C10/C13/C18/C20/C22/C24/C26/C27/C28 | 100 nF, 0402, 16 V X7R | C1525 | 10 |
 | C14 | 1 nF, 0402 | C1523 | 1 |
-| C16/C19/C21/C23/C25 | 1 uF, 0402, 25 V X5R | C52923 | 5 |
-| Local bypass capacitors | 100 nF, 0402, 16 V X7R | C1525 | 11 |
+| C16/C19/C21 | 1 uF, 0402, 25 V X5R | C52923 | 3 |
 
 Active FETs: Q2/Q3/Q6/Q7 are BSS138P,215, LCSC C75547, SOT-23, Extended; 463,528 stock in the Konnect cache. Konnect cache verification at this revision: U14 TPS2121RUXR/C485916 (37,201 stock); U4 TPS259470LRPWR/C3662793 (2,842); U2 CP2102N/C964632 (42,417); U1 CH334F/C5187527 (4,767); U5 TS3USB221A/C128396 (92,432); U6 SN74LVC1G125/C23654 (102,950); U8 TLV76733/C2848334 (20,010); ESD C138714 (175,385); J1/J3 C165948 (93,517); J2 C283540 (9,051). No listed selected core part is below 1,000 stock or marked EOL in that cache.
 
@@ -291,12 +430,14 @@ Active FETs: Q2/Q3/Q6/Q7 are BSS138P,215, LCSC C75547, SOT-23, Extended; 463,528
 - A split cable isolates Pi VBUS from the external 5 V leg.
 - HIL off after reset/fault is acceptable.
 - There is no automatic physical-detach shutdown: a physically removed DUT can leave J3 VBUS live until the service disables it.
+- **No supply-side UVLO divider on U4 EN/UVLO (M4) — accepted.** `EN_HIL` is driven only by the 3.3 V GPIO, so whenever EN is high the eFuse passes whatever VSYS is. VSYS between U4's own `VUVP(R)` (~2.53 V) and the USB-C 4.75 V minimum therefore reaches J3 as "VBUS" while below spec. The window is narrow in practice: below roughly 3.6 V the 3.3 V rail collapses, the hub and CP2102N brown out and the USB path drops anyway. Backstops: software checks `VBUS_UP_SNS`/J2 presence before enabling, and a brown-out must be reported as a failed test rather than a valid run.
+- **U5's unused `2D+/2D-` pins left open (M8) — accepted.** TI recommends 50 Ohm to GND on unused switch pins (`U5.3`/`U5.4`) to avoid reflections. None are fitted because no signal can reach that port: `SEL` is strapped to GND, so the 2D path is never selected, and the pins are no-connect. Revisit only if a future revision makes that port selectable.
 
 ### Open questions
 
 1. Confirm CH334F PSELF polarity and reset/pull-up behavior on prototype.
-2. Program CP2102N with Silicon Labs Xpress Configurator before release: GPIO.4 push-pull reset low; GPIO.5/6 open-drain reset high; GPIO.0-3 digital inputs; self-powered, 100 mA. The released production package must contain `cp2102n_config.hex`, generated from this exact manifest, plus its SHA-256 and serial-number policy; do not allow blank parts into PCBA. Program and read back each unit before final test.
-3. Confirm on a fresh Raspberry Pi OS image that `/dev/gpiochipN [cp210x]` exposes all seven lines and that the chosen GPIO levels work at 3.3 V.
+2. Program CP2102N with Silicon Labs Xpress Configurator before release, using the per-pin modes in §6.3: GPIO.6 push-pull (latch 0), GPIO.2 and GPIO.4 open-drain (latch 1), GPIO.0/1/3/5 digital inputs, GPIO.0-3 alternate functions disabled, self-powered at 100 mA. The released production package must contain `cp2102n_config.hex`, generated from the §6.1 assignment — and ultimately from the netlist, not from this document — plus its SHA-256 and serial-number policy; do not allow blank parts into PCBA. Program and read back each unit before final test.
+3. Confirm on a fresh Raspberry Pi OS image that `/dev/gpiochipN [cp210x]` exposes all seven lines, that the **line index matches the GPIO number** (line 6 = GPIO.6 = `HIL_VBUS_EN`, the enable that must be push-pull), and that the chosen GPIO levels work at 3.3 V.
 4. Confirm acceptance of Pi-powered low-current operation with fixed 3 A Rp.
 5. Confirm the board envelope and whether an enclosure changes the shell grounding approach.
 

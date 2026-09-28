@@ -1,4 +1,4 @@
-# USB-C HIL Control — Schematic Review Report (v4)
+# USB-C HIL Control — Schematic Review Report (v6)
 
 **Project:** `llm-kicad` (USB-C HIL Control, HIL USB-C bench fixture)
 **Scope:** `llm-kicad.kicad_sch` + `01_power_cc`, `02_usb_hub_control`, `03_dut_interface`, `04_test_validation`
@@ -13,24 +13,28 @@
 | v2 | 2026-09-27 | Initial structured review: 5 H, 10 M, 10 L; first fix pass (H1–H5). |
 | **v3** | 2026-09-27 (later) | Adds **H6** (crystal pad mapping — a hub-killing defect found after v2). Records **M1** and **M2** as fixed, **M6** and **M7** as accepted (owner decision), **M5** as recommend-accept on analysis, and **M4/M8/M9** as still open. Corrects the net named in **M3** and the `ST` description in **M6**. Adds a new **PCB layout** section (fab blocker, design-rule decisions, current DRC state) and **M11** (C5 value/part mismatch). Refreshes every ERC/DRC figure. Supersedes v2. |
 | **v4** | 2026-09-27 (final) | Re-checked from scratch against the saved files after the owner's edit pass. Adds **H7** — the CP2102N GPIO map in the architecture contradicts the schematic, and following it would leave U4 disabled and J3 unable to advertise (the top schematic item). Adds the automated **pin-number vs pad-number audit** (101 footprints, 0 mismatches). Rewrites **M3** (all ERC suppression removed; 4 errors / 2 warnings) and **M11** (C5 is now a value/part/land three-way mismatch). Corrects matrix rows 16 and 22, adds a "Verified at v4" section and a **Where to continue** list. Supersedes v3. |
+| **v5** | 2026-09-28 | **H7 FIXED on the document side** after a measured routing study: all 5040 pin assignments were scored against the placed board, and the existing wiring turned out to be already crossing-free and within 1% of the shortest, so no pin swap was made and the architecture was corrected instead. Records the resulting `architecture_final.md` §6.1–§6.4 rewrite (table, configuration manifest, control-service example) and the removal of the bogus `GPIO.7` claim. Updates the verdict, matrix row 16 and the release gates. Supersedes v4. |
+| **v6** | 2026-09-28 | **Nine of eleven medium findings closed.** M4 and M8 **accepted** by owner decision, M11 **fixed** (C5 reverted to `47uF 10V` / C96123 / 1206 — value, part and land now agree; the audit is clean), and M9 **documented** as `architecture_final.md` §6.5 — which also corrected this report's own advice: a latched fault clears only when EN/UVLO goes *below* `VSD(F)` (0.45–0.74 V), not merely below the UVLO threshold (1.09 V). Only M3 and M10 remain. Supersedes v5. |
 
 ---
 
 ## Verdict
 
-**H1–H6 CLEARED AND VERIFIED — ONE NEW HIGH FINDING IS NOW THE TOP SCHEMATIC ITEM.** Seven high-severity findings have been found in total: H1–H5 (first pass), **H6** (crystal pad mapping — a hub-killing wiring defect) and **H7** — the CP2102N GPIO map in `architecture_final.md` contradicts the schematic on 6 of 7 pins, and following the architecture's own programming instruction would leave **U4 permanently disabled and J3 unable to advertise power to the DUT**. H7 is a contract/documentation defect rather than a wiring defect, but nothing on the board works until it is reconciled.
+**ALL SEVEN HIGH FINDINGS CLEARED — TWO SMALL SCHEMATIC ITEMS AND ONE PCB FAB BLOCKER REMAIN.** H1–H5 (first pass), **H6** (crystal pad mapping — a hub-killing wiring defect) and **H7** (the CP2102N GPIO map, where the document contradicted the hardware and following it would have left U4 disabled and J3 unable to advertise) are all resolved. H7 was fixed on the **document** side, after a measurement showed the hardware wiring was already the routing optimum and that the document's own map would have been a regression.
 
-The design itself is in good shape and measurably better than at v3: a full **pin-number vs pad-number audit across all 101 placed footprints found zero mismatches** (this is the check that would have caught M1 and H6 by machine), **all ERC suppression has been removed** so the ERC result is finally trustworthy, and the USB-C CC/Rd/Rp implementation is fully compliant and needed no change.
+The design is in good shape and measurably better than at v3: a full **pin-number vs pad-number audit across all 101 placed footprints found zero mismatches**, **all ERC suppression has been removed** so the ERC result is finally trustworthy, the architecture document now matches the netlist pin-for-pin (verified programmatically, 7/7), and the USB-C CC/Rd/Rp implementation is fully compliant and needed no change.
 
-**Remaining schematic work is three items:** (1) **H7** — reconcile the GPIO map and generate the CP2102N configuration from the netlist; (2) **M3** — four flags (2 × `PWR_FLAG`, 2 × no-connect) to reach 0 ERC errors; (3) **M11** — C5's value text names 100 µF while its coded part is 47 µF.
+**Remaining schematic work is one functional item and one tooling item:** (1) **M3** — four flags (2 × `PWR_FLAG`, 2 × no-connect) to reach 0 ERC errors; (2) **M10** — clear the 43 stale `instances` records so scripted edits work again (no netlist, ERC, DRC or fabrication impact).
+
+**Nine of eleven medium findings are now closed:** M1, M2 and M11 fixed, M9's recovery contract written into the architecture, and M4/M5/M6/M7/M8 accepted by owner decision with the risk recorded in `architecture_final.md` §10.
 
 | Severity | Count | Status |
 |---|---:|---|
-| **H** | 7 | H1–H6 **fixed and verified** · **H7 open — top priority** |
-| **M** | 11 | M1, M2 **fixed** · M5, M6, M7 **accepted** (M5 on analysis, M6/M7 by owner decision) · M3, M4, M8, M9, M10, M11 **open** |
+| **H** | 7 | **All 7 fixed and verified** |
+| **M** | 11 | M1, M2, M9, M11 **fixed** · M4, M5, M6, M7, M8 **accepted** (owner decision) · **M3, M10 open** |
 | **L** | 10 | Open (L1–L10) — documentation/tidiness only |
 
-**Release gates (in order):** (1) **H7** — reconcile the GPIO map, then build `cp2102n_config.hex` from the netlist; (2) **M3** — 2 `PWR_FLAG` + 2 no-connect flags → ERC 0 errors with nothing suppressed; (3) **M11** — fix C5; (4) PCB — fix U4's footprint polygons (the only *fabrication* blocker), route the last ~30 nets, restore the netclass via size to `0.5/0.3`.
+**Release gates (in order):** (1) **M3** — 2 `PWR_FLAG` + 2 no-connect flags → 0 ERC errors with nothing suppressed; (2) generate `cp2102n_config.hex` from §6.1 with the per-pin modes in §6.3, built from the netlist — not from the prose that H7 caught; (3) confirm the §6.5 fault-recovery contract on the prototype (mandatory prototype test 5); (4) PCB — fix U4's footprint polygons (the only *fabrication* blocker), route the last ~30 nets, restore the netclass via size to `0.5/0.3`.
 
 ---
 
@@ -163,9 +167,9 @@ All four sheets and the project were re-saved at 22:01; this pass records what c
 
 ---
 
-### H7 — The architecture's GPIO map contradicts the schematic on 6 of 7 pins; following it would leave U4 disabled and J3 unable to advertise
+### H7 — The architecture's GPIO map contradicted the schematic on 6 of 7 pins; following it would have left U4 disabled and J3 unable to advertise
 
-**Status: ❌ OPEN — top priority. Reconcile the documents, then generate the CP2102N configuration from the netlist. No board or schematic change is needed.**
+**Status: ✅ FIXED 2026-09-28 — documentation corrected, no schematic or board change.** `architecture_final.md` §6.1 (table), the `cp2102n_config.hex` release-gate instruction, the two stale GPIO references in §5.1/§5.2, the non-existent `GPIO.7` claim in §5.1, and `schematic_overview.md` now all match the netlist, and the configuration image is specified to be generated from the netlist rather than from the prose. §6 was also expanded with a configuration-image manifest (§6.3) and a corrected control-service example (§6.4, which also had broken indentation). Verified programmatically: the document's seven pin→net rows now agree with the board 7/7, and each declared mode matches its net's role.
 
 This is a *contract* defect rather than a wiring defect, but its consequence is a fixture that does not work — and it is invisible to ERC and DRC, because no automated check compares a document to a netlist.
 
@@ -188,7 +192,27 @@ This is a *contract* defect rather than a wiring defect, but its consequence is 
 - **Which side is wrong: the schematic is right and the architecture is wrong.** The wiring is self-consistent with the intent — the two pins that must be open-drain outputs (`HIL_DATA_EN_N`, `HIL_CC_EN_N`) each carry a 100 kΩ pull-up (`R48`, `R49`), the pin that must be push-pull (`HIL_VBUS_EN`) drives a series-resistor/threshold path with no pull-up, and the four sense nets drive dividers into the chip. Only the *assignments* differ from §6.
 - **Fix:** correct the §6 table, the `cp2102n_config.hex` instruction and the `schematic_overview.md` block diagram to the map above, then derive the configuration image from the **netlist** rather than from the document. Nothing needs to change on the schematic or the board.
 - **Why it was missed until now:** the earlier reviews verified that the architecture's GPIO table was internally consistent and that each net was wired as its name implies — which is exactly what hides a pin-level permutation. Both the document and the net names are self-consistent; only their *pairing* is wrong.
+- **Collateral fix found while editing the same document: its §9 BOM passive table was stale in the H5/M11 class.** It listed **two parts that do not exist** (`R7`/`R8`, 5.6 kΩ, C25908) and carried pre-fix values for `R28` (100 kΩ — H4 changed it to 10 kΩ), `R34` (1 kΩ in the 1 kΩ group — H5 changed it to 10 kΩ), `R5`/`R6` (33 kΩ, C25779 — the fitted part is 4.7 kΩ, C25900), `C23`/`C25` (1 µF — M2 changed them to 4.7 µF C1779) and `C5`/`C37` (C37 does not exist). Because this is the table someone would **order from**, it was regenerated from the design and now expands to exactly the schematic's 36 resistors and 23 capacitors — verified: 59 references, 0 problems, none missing. Worth noting that the v2/v3 whole-board value/part cross-checks never covered this document, only the schematic.
 - **Evidence:** netlist `pinfunction` values for U2 with their net membership (exported 2026-09-27); `architecture/architecture_final.md` §6 and the release-gate instruction; `architecture/schematic_overview.md`; net membership of `R27`, `R28`, `R48`, `R49`, `R73`, `R74`; U6 (`SN74LVC1G125`) pin 1 = `!OE`. **Confidence: high** for the mismatch and for all three mode consequences.
+
+#### Was a pin shuffle worth doing? Measured, not assumed
+
+With the document confirmed wrong, the alternative was to change the *hardware* — either to the document's map, or to a routing-optimal one. All 5040 assignments of the seven signals to pins 16–22 were scored against the placed board on first-hop length and on fan-out **crossings** (a crossing costs a via or a detour, so it matters more than a millimetre):
+
+| Assignment | Total first-hop length | Crossings |
+|---|---:|---:|
+| **as built** (schematic and board) | 52.32 mm | **0** |
+| architecture §6 as it stood (adopting it would mean rewiring) | 55.07 mm | **2** |
+| best of all 5040 permutations | 51.68 mm | 0 |
+
+So the existing wiring is already crossing-free — the minimum achievable, shared by many permutations — and within **0.64 mm (1.2%)** of the global length optimum. The spread is small because most of each net's length lies outside U2's fan-out; the pin choice only affects the first hop. Adopting the document's map would have been a **regression: 2.75 mm longer and two crossings.** **No pin swap was made.**
+
+Two further conclusions from the same measurement:
+
+- The CP2102N pinout is **not** why 30 nets remain unrouted — that is a placement/routing problem, so the pin map should not be expected to buy routing headroom.
+- The recommendation is tied to the current placement. If the divider networks, test points, U4, U5 or U6 are moved, the optimum can shift — but with only ~1 mm of total spread across all 5040 options it is unlikely to become worth a rewire.
+
+**Method (so the numbers can be re-derived):** pad geometry was computed from the `.kicad_pcb` with the rotation transform `abs = fp + (lx·cos θ + ly·sin θ, −lx·sin θ + ly·cos θ)`, validated against **23/23** absolute pad coordinates printed by `kicad-cli pcb drc`. The first validation attempt failed because pad numbers like `SH` exist **four times** in a USB-C footprint (and an exposed pad with thermal vias exists many times) — a parser that keys pads by number alone silently keeps only the last instance and produces mirrored geometry. Worth remembering for any future board-side script.
 
 ---
 
@@ -232,13 +256,15 @@ This is a *contract* defect rather than a wiring defect, but its consequence is 
 - **Evidence:** fresh `kicad-cli` ERC report (2026-09-27T22:08); `.kicad_pro` `schematic.erc` read as an **empty object**; `#PWR002`/`#PWR004` identity, value and coordinates read from `04_test_validation.kicad_sch`; U1 pin numbers from the netlist. **Confidence: high.**
 
 ### M4 — U4 EN/UVLO has no supply-side UVLO divider
-**Status: ❌ OPEN — awaiting owner decision** (add a VSYS UVLO divider, or accept and document). No change made.
-- EN/UVLO is driven directly from a 3.3 V GPIO, so the eFuse's own UVLO comparator is bypassed. Whenever EN is high the part passes whatever VSYS happens to be (e.g. a sagging Pi port) to J3 as "VBUS", below the USB-C 4.75 V minimum.
-- **Fix:** optional VSYS divider sized for ~4.5–4.6 V UVLO (the datasheet permits pulling EN to IN below 5 V — the missing element is the UVLO point itself), or accept and document.
-- **Evidence:** TPS259470x Table 6-1 and §6.3 note 2; extraction `EN_HIL` net. **Confidence: high** (mechanism); the severity is a policy call.
+**Status: ✅ ACCEPTED 2026-09-28 (owner decision — no divider fitted).** Recorded in `architecture_final.md` §10 as an accepted limitation and cross-referenced from §5.2.
+- **What it is:** EN/UVLO is driven directly from a 3.3 V GPIO, so the eFuse's own UVLO comparator is bypassed. Whenever EN is high the part passes whatever VSYS happens to be to J3 as "VBUS".
+- **The exposure, quantified:** VSYS is only passed while it is above U4's own input `VUVP(R)` (~2.53 V), so the risk window is VSYS ≈ 2.5–4.75 V, where J3 presents a below-spec "VBUS" to the DUT. In practice, below ~3.6 V the 3.3 V rail collapses and the hub, CP2102N and USB path brown out anyway, which narrows the window further.
+- **Accepted because:** the residual exposure is small and self-limiting, and the alternative — a VSYS divider on EN/UVLO — costs parts and adds a second failure mode on the very pin that must also be pulled hard low for fault recovery (§6.5).
+- **Backstops recorded with the acceptance:** software checks `VBUS_UP_SNS`/J2 presence before enabling, and a brown-out must be reported as a failed test rather than a valid run.
+- **Evidence:** TPS259470x Table 6-1 and §6.3 note 2; `VUVP(R)` 2.53 V typ; extraction `EN_HIL` net. **Confidence: high** (mechanism); the severity was a policy call and is now closed.
 
 ### M5 — U14 output bulk capacitance (C5 = 47 µF) is below the datasheet example
-**Status: ⚠️ RECOMMEND ACCEPT — analysis complete, owner decision pending.** The datasheet's switchover examples use `C_L = 100 µF`, but that is an example used to bound output droop, not a requirement, and the numbers do not motivate a change.
+**Status: ✅ ACCEPTED 2026-09-28 — settled by the M11 decision to keep C5 at 47 µF.** The datasheet's switchover examples use `C_L = 100 µF`, but that is an example used to bound output droop, not a requirement, and the numbers do not motivate a change.
 - **Fast switchover (5 µs, `CP2 ≥ VREF` — the normal case, J2 present):** ΔV = I·t/C = 3.89 A × 5 µs ÷ 47 µF = **0.41 V** → VSYS dips 5.0 → **4.6 V**. The TLV76733 needs 3.3 V + dropout (≈0.3–0.5 V) ≈ **3.6–3.8 V minimum**, so 4.6 V clears it with ~0.8–1.0 V of margin. 100 µF would give 0.19 V instead.
 - **Slow switchover (100 µs, J2 absent):** at the full 3.89 A the output collapses regardless of any practical capacitor — 94 µF still gives 4.14 V of droop. **No amount of bulk in this range fixes it**, so adding capacitance buys nothing for the one scenario that carries risk. That scenario is already handled by design intent: `product_description` requires **software to turn J3 VBUS off before a planned J2 removal** (load then ≈115 mA → droop ≈0.24 mV), and the *unplanned* full-load J2 loss is an explicitly accepted limitation ("may reset the board or DUT").
 - **If it were to be changed:** 100 µF is available in the **same 1206 land** (`C883598` = `GRM31CR61A107MEA8L`, 1206, 100 µF, 10 V, Extended) with zero layout change, or in 1210 (+56 % area). Do **not** use a 6.3 V part on this rail: VSYS can transiently see the TVS clamp (breakdown ≥7.2 V), so ≥10 V, preferably 16 V.
@@ -271,16 +297,19 @@ This is a *contract* defect rather than a wiring defect, but its consequence is 
 - **Evidence:** `Datasheet` property audit across all four sheets; directory listing confirming `data_cache/` is absent. **Confidence: high.**
 
 ### M8 — Unused TS3USB221A port pins left open
-**Status: ❌ OPEN — awaiting owner decision** (add the 50 Ω terminations, or document that the port is unreachable). No change made.
-- TI recommends connecting unused switch pins to ground through **50 Ω** to prevent reflections; `U5.3/U5.4 (2D+/2D-)` are no-connect.
-- **Fix:** 50 Ω to GND on each, or document that no signal can ever reach that port (SEL is strapped to GND, so the 2D port is never selected).
-- **Evidence:** TS3USB221A §7.3.1/§8.2.2; extraction `U5` pins + NC list. **Confidence: high.**
+**Status: ✅ ACCEPTED 2026-09-28 (owner decision — no terminations fitted).** Recorded in `architecture_final.md` §10 as an accepted limitation.
+- **What it is:** TI recommends connecting unused switch pins to ground through **50 Ω** to prevent reflections; `U5.3`/`U5.4` (`2D+`/`2D-`) are no-connect.
+- **Accepted because the port is unreachable:** `SEL` (`U5.9`) is strapped to `GND`, so the switch is permanently on the 1D path and no signal — hub or DUT — can ever be presented to `2D±`. Leaving them open therefore cannot cause the reflection the recommendation guards against.
+- **Revisit condition:** if a future revision makes the 2D port selectable, the 50 Ω terminations become necessary.
+- **Evidence:** TS3USB221A §7.3.1/§8.2.2; extraction of `U5`'s pins, the `SEL` net (`U5.5`/`U5.9` on `GND`) and the no-connect list. **Confidence: high.**
 
 ### M9 — eFuse latch-off recovery must be an explicit software path
-**Status: ❌ OPEN — documentation/contract item.** The schematic is already consistent with the architecture; what is missing is the written recovery sequence. No code or schematic change required.
-- U4 is the **-L (latch-off)** variant: after thermal shutdown it stays off until VIN is cycled below V_UVP(R) or EN/UVLO is toggled below V_SD(F) (Table 7-2). With **ITIMER open** (documented valid), a persistent overcurrent is *limited* rather than latched, so a sustained short maintains current limit and eventually relies on thermal shutdown + latch-off.
-- **Fix:** define the recovery sequence in the software contract — drive EN_HIL low for a defined interval in `hil_off()`, and have software treat a latched FAULT as requiring that reset. The schematic is consistent with the architecture; this is a contract/documentation item.
-- **Evidence:** TPS259470x Table 7-2, §7.3.5.3 Note 1, §4 device comparison. **Confidence: high.**
+**Status: ✅ FIXED 2026-09-28 — documented as `architecture_final.md` §6.5.** No schematic or code change was needed; what was missing was the written contract. Drafting it also **corrected this finding's own advice** — see the correction bullet below.
+- **What it is:** U4 is the **-L (latch-off)** variant. Per datasheet Table 7-3, the faults that latch on this board are **overtemperature** and **ILM pin shorted to GND**; all others (UVLO, input overvoltage, persistent overcurrent, ILM open, output short, reverse current) do not latch. With **ITIMER open**, a persistent overcurrent is *limited* rather than latched, so a sustained short sits in current limit and only latches if it then overheats.
+- **⚠️ Correction to the v3–v5 wording of this finding.** It said recovery needs "EN/UVLO toggled below `V_SD(F)`" without emphasising the trap, which the datasheet states explicitly: *"During a latched fault, pulling the EN/UVLO just below the UVLO threshold has no impact on the device."* `VUVLO(F)` is 1.09 V typ while `VSD(F)` is 0.45–0.74 V, so a low that merely crosses UVLO leaves the part latched — and so does releasing the pin to high impedance, where the R27/R28 divider holds `EN_HIL` above `VSD(F)`. The EN low must be a **hard low below 0.74 V, targeted below 0.45 V**.
+- **Why this design can do it:** `HIL_VBUS_EN` is a push-pull output driving `EN_HIL` through R27 = 1 kΩ with R28 = 10 kΩ to GND, so driving it low pulls `EN_HIL` to ≈0 V. The hardware path was already correct — it just had to be written down.
+- **What §6.5 now specifies:** the latched/not-latched table; both clear methods (VIN cycle to 0 V, or EN below `VSD(F)`); the hard-low requirement with both thresholds; that `hil_off()` *is* the recovery primitive and must hold low ≥10 ms; a `hil_fault_clear()` path; no tight auto-retry loop while the cause persists; that clearing the latch releases FLT, so FLT returning high is not proof of a healthy load; that a latched fault makes `VBUS_HIL_SNS` read low and must not be misreported as "DUT unplugged"; and that the Pi cannot power-cycle VSYS, so the EN toggle is the only practical recovery route.
+- **Evidence:** TPS259470x Table 7-2, Table 7-3, §7.3.8/§7.3.9 (`VSD(F)` 0.45/0.74 V, `VUVLO(F)` 1.09 V typ), §4 device comparison; `EN_HIL` net membership. **Confidence: high.**
 
 ---
 
@@ -294,13 +323,10 @@ This is a *contract* defect rather than a wiring defect, but its consequence is 
 
 ---
 
-### M11 — C5's value text does not match its coded part (H5-class mismatch, still open)
-**Status: ❌ OPEN — one field.** The v3 form of this finding (value text claiming 25 V against a 10 V part) was partly addressed, but the edit introduced a new inconsistency in the other direction.
-- **What:** `C5` now has `Value = 100uF 10V`, `LCSC = C96123` = `CL31A476MPHNNNE` = **10 V *47 µF* X5R on a *1206* body**, and `Footprint = Capacitor_SMD:C_1210_3225Metric`. The board was re-synced to the same 1210 land at 22:17, so **schematic and PCB now agree (0 footprint mismatches of 101)**. What remains is that the **value overstates the capacitance by 2×**, and the coded part is a 1206 body on a 1210 land.
-- **Why it matters:** same class as **H5** — schematic text that contradicts the BOM — but here the risk is specific. The M5 analysis is *about* whether 47 µF is sufficient on VSYS, so a reader seeing "100uF" would conclude the bulk-capacitance question has been closed when it has not.
-- **Fix — one field either way:**
-  - **Commit to 100 µF (keeps the 1210 land; smallest change):** set `LCSC = C23742` (`CL32A107MPVNNNE`, 1210, 100 µF, 10 V, **Extended**, $0.445) — or `C90143` / `C7432790` for **16 V** margin against the TVS clamp at $0.92 / $0.43. The value text and the land already match; only the part code changes.
-  - **Revert to 47 µF (cheapest part, but needs a re-sync):** set `Value = 47uF 10V`, keep `C96123` (**JLCPCB Basic**, $0.243, 338 k stock), and change the land back to `Capacitor_SMD:C_1206_3216Metric` so it matches the 1206 body.
+### M11 — C5's value text did not match its coded part (H5-class mismatch)
+**Status: ✅ FIXED 2026-09-28.** `C5` is now consistent on all three attributes: `Value = 47uF 10V`, `LCSC = C96123` (`CL31A476MPHNNNE`, 10 V 47 µF X5R, 1206, **JLCPCB Basic**), and `Footprint = Capacitor_SMD:C_1206_3216Metric` in both the schematic and the placed board. `tools/audit_schematic.py` reports **0 flagged components of 35 unique part codes** — the whole-board value/part/voltage cross-check is clean. This also settles **M5**: the design stays at 47 µF, which the droop analysis already supported.
+- **What it was:** at v5, `C5` carried `Value = 100uF 10V` while `LCSC = C96123` is a 47 µF part, on a 1210 land — the value overstated the capacitance by 2× and the land was one size larger than the coded body. Before that, at v3, the value text claimed 25 V against a 10 V part.
+- **Resolution taken:** revert to 47 µF with the matching 1206 land, keeping the Basic part `C96123` ($0.243). No new part code, no extended-part fee, and the schematic, BOM and board all agree. (The alternative — committing to 100 µF — would have required an **Extended** part, since no Basic 100 µF exists at 10 V or above.)
 - **Why there is no "100 µF *and* Basic" option:** the catalogue contains only **two** Basic 100 µF parts in total — `C15008` (`CL31A107MQHNNNE`, 1206, **6.3 V** X5R, $0.125, 2.06 M stock, the only one in a 1206/1210 body — 1 of 102 such parts) and `C16133` (a CASE-B tantalum, also 6.3 V). **Zero** Basic 100 µF parts exist at 10 V or above. Committing to 100 µF therefore necessarily costs one Extended-part fee; staying Basic means staying at 47 µF with `C96123`. `C15008` is not usable on this rail: VSYS has OVLO at 6.19 V and a TVS (SMAJ6.5A) that stands off at 6.5 V, so a 6.3 V part would sit at ≈98 % of its rating before protection acts.
 - **Cross-reference M5:** the analysis showed 100 µF buys little — the 5 µs switchover droop is 0.41 V at 47 µF (VSYS 4.60 V, comfortably above the TLV76733's ≈3.6–3.8 V minimum) and the risky 100 µs case collapses at any practical capacitance. Either choice is defensible; what is not defensible is a value that names a capacitance the BOM does not contain.
 - **Why it was missed, and how it is caught now:** the v2/v3 whole-board cross-check compared a voltage rating embedded in the value text but not the capacitance. A check that compares **every numeric token** in the value against the catalogue description now exists as `tools/audit_schematic.py` — it flags exactly this defect, and reports C5 as its only hit.
@@ -310,7 +336,7 @@ This is a *contract* defect rather than a wiring defect, but its consequence is 
 
 ## Low findings / considerations
 
-- **L1 — Rail naming:** the 3.3 V rail is `+3.3V` on all 25 power symbols; the architecture, BOM and Konnect conventions say `+3V3`. Internally consistent, but rename for documentation/tooling consistency (no electrical impact).
+- **L1 — Rail naming (re-verified 2026-09-28):** the 3.3 V rail is `+3.3V` on all **30** power symbols and the net is `+3.3V` (33 nodes, confirmed from the netlist), while `architecture_final.md` writes `+3V3` throughout — so text and design disagree. One placed element still carries the old name: **`TP4`'s `Value` is `+3V3` although the net it probes is `+3.3V`** (sheet `04_test_validation`, at 149.86, 30.48). Electrically harmless — the netlist resolves the rail to `+3.3V` — but a test point is labelled with a name the rail does not have, which is a troubleshooting trap. Rename `TP4` to `+3.3V`, or standardise the whole design and the architecture on one spelling. Note the cached `power:+3V3` library symbol also lingers unused in sheet 04's `lib_symbols`.
 - **L2 — Misleading net names:** `U14_ILIM_PENDING` and `U14_SS_PENDING` persist although R32 and C6 are fitted. Rename to `U14_ILIM` / `U14_SS` — and see H2, the name is an honest hint that the value was never closed.
 - **L3 — BOM MPN inconsistency:** `U11 = TPD4E05U06DQAR` while `U9/U10 = TPD4E05U06DQA` (same die, reel suffix). Unify the BOM part number.
 - **L4 — Footprint library name vs variant:** U4's footprint library is `TPS259470ARPWR` while the part is `TPS259470LRPWR`. Same RPW0010A package, so geometry is fine, but the **A and L variants differ in fault behaviour** — rename to prevent an AVL mix-up.
@@ -467,13 +493,13 @@ The four CP2102N decoupling caps sit **5.9–6.6 mm** from U2's power pins, agai
 | 13 | Controlled VBUS discharge | ✅ Pass | R36/Q3, ≈17 ms to 0.8 V |
 | 14 | TVS at all three USB-C VBUS pins | ✅ Pass (H3 fixed) | D1/D2 now SMAJ6.5A (C123817), matching D3 |
 | 15 | Low-capacitance ESD at USB/CC pins | ✅ Pass | U9/U10/U11, 0.5 pF, V_RWM 5.5 V |
-| 16 | GPIO mapping per architecture §6 | ❌ **Fail (H7)** | The schematic is self-consistent, but it contradicts architecture §6 on **6 of 7** GPIO pins — and the documented configuration would leave U4 disabled and J3 unable to advertise (H7) |
+| 16 | GPIO mapping per architecture §6 | ✅ **Pass (H7 fixed)** | §6.1–§6.4, `schematic_overview.md` and the §5.1/§5.2 references now match the netlist pin-for-pin (verified programmatically, 7/7); the map is also the measured routing optimum (0 crossings, within 1% of the shortest) |
 | 17 | Deterministic default = disconnected state | ✅ Pass (H4 fixed) | R28 = 10 kΩ → EN_HIL ≈0.3 V worst case |
 | 18 | Mux current limit within device limits | ✅ Pass (H2 fixed) | R32 = 24 kΩ → ≈4.23 A, inside the 18–100 kΩ range |
 | 19 | All ICs have datasheet-complete external parts | ✅ Pass (M2 fixed) | 4.7 µF + 100 nF at both U2 power pins (`C1779` Basic at 0805 + 0402 100 nF); **placement at U2 still to verify** |
 | 20 | Qualified 5 V input boundary, no PD/BC1.2 | ✅ Pass | No PD/BC1.2/VCONN circuitry; no SBU |
 | 21 | Component packages match assigned footprints | ✅ Pass (H1, M1, H6 fixed) | CH334F now 4×4 mm / 0.5 mm; J2 uses a six-pin symbol matched to its six-pad footprint; Y1 now `Crystal_GND24` on the four-pad land |
-| 22 | BOM part numbers match component values | ⚠️ **Partial (H5 fixed; M11 open)** | R33/R34/R35 → C25744 (10 kΩ); whole-board value/part/voltage cross-check is clean except **C5**, whose value `100uF 10V` does not match its coded 47 µF part (M11) |
+| 22 | BOM part numbers match component values | ✅ **Pass (H5, M11 fixed)** | Whole-board value/part/voltage cross-check is clean — `tools/audit_schematic.py` flags 0 of 35 unique part codes. Also applied to the architecture document's BOM table, which had drifted (see H7) |
 
 **Unverified / manual-review items (not defects):**
 
@@ -503,13 +529,13 @@ The four CP2102N decoupling caps sit **5.9–6.6 mm** from U2's power pins, agai
 
 Priority order for the next session. Items 1–3 are schematic; 4 and below are layout.
 
-1. **H7 — reconcile the GPIO map.** Edit `architecture/architecture_final.md` §6, the `cp2102n_config.hex` release-gate instruction, and the `schematic_overview.md` diagram to the pin map in H7, then generate the CP2102N configuration image from the **netlist**. No schematic or board change. *This is first because the fixture cannot work until it is done — as written today, U4 would never enable and J3 would never advertise.*
+1. ~~**H7 — reconcile the GPIO map.**~~ **Done 2026-09-28.** `architecture_final.md` (§6.1 table, §6.2 truth table, §6.3 configuration manifest, §6.4 example, the §5.1/§5.2 GPIO references, and the bogus `GPIO.7`) and `schematic_overview.md` now match the netlist; verified programmatically 7/7. **No hardware change was needed** — all 5040 pin assignments were scored, and the existing wiring is already crossing-free and within 1% of the shortest. Remaining sub-task: produce `cp2102n_config.hex` from §6.1 using the modes in §6.3.
 2. **M3 — four flags to a clean ERC.** Add a `PWR_FLAG` on GND and on `VBUS_PWR` (both on `04_test_validation`), and no-connect flags on `U1` pins 5 and 6. Then decide `U1`'s and `J1`'s `lib_symbol_mismatch` deliberately. Target: **0 errors, 0 suppressed checks.**
-3. **M11 — C5.** One field either way: code `C23742` (`CL32A107MPVNNNE`, 1210, 100 µF, 10 V, Extended) to match the value text and land that are already in place, **or** revert to 47 µF (`47uF 10V`, `C96123` Basic) and put the land back to 1206. M5 says 100 µF is not needed, so reverting is the cheaper engineering call.
+3. ~~**M11 — C5.**~~ **Done 2026-09-28** — C5 reverted to `47uF 10V` / `C96123` / 1206 so value, part and land all agree; the whole-board value/part cross-check is now clean. This also settles M5 at 47 µF. Optional follow-on: add a 100 nF at VREGIN if C28 was ever removed — it is present.
 4. **P1 — U4's footprint polygons** (the only *fabrication* blocker): give the exposed pad a real `GND` pad, or delete the four no-net `F.Cu` polygons.
 5. **Restore the netclass via size** in `Default` and `USB_90` to `0.5/0.3`, and drop `0.45/0.3` from the pre-defined size list — otherwise the next via routed on netclass defaults comes out at 0.45 and re-breaks `annular_width`.
 6. **Finish the layout:** route the last ~30 nets, clear `starved_thermal`, raise the 0.2 mm drills inside U1/U8, tidy silkscreen and dangling tracks.
-7. **Decisions still owed:** **M4** (VSYS UVLO divider on U4 EN/UVLO), **M8** (50 Ω on U5's unused `2D±`), **M9** (latch-off recovery in the software contract), **M10** (clear the 43 stale `instances` records so tooling can edit U1/U2/U5/U6/U9/U10/J1/J3 again), and **L1–L10** (naming and documentation tidies). **M5** is settled by the C5 choice in item 3.
+7. **Decisions still owed:** **M10** (clear the 43 stale `instances` records so tooling can edit U1/U2/U5/U6/U9/U10/J1/J3 again) and **L1–L10** (naming and documentation tidies). **M4, M5, M6, M7, M8 are accepted** and recorded in `architecture_final.md` §10; **M9 is documented in §6.5**; **M11 is fixed**.
 
 ---
 

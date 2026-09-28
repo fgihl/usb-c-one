@@ -14,9 +14,9 @@ flowchart LR
   U1 -->|Port 1| U2[U2 CP2102N]
   U1 -->|Port 2| U5[U5 TS3USB221A]
   U5 -->|D+/D-| J3
-  U2 -->|GPIO.4| U4
-  U2 -->|GPIO.5| U5
-  U2 -->|GPIO.6| U6[U6 SN74LVC1G125]
+  U2 -->|GPIO.6 HIL_VBUS_EN| U4
+  U2 -->|GPIO.4 HIL_DATA_EN_N| U5
+  U2 -->|GPIO.2 HIL_CC_EN_N| U6[U6 SN74LVC1G125]
   U6 -->|fixed 3 A Rp| J3
   U14 --> U8[U8 3.3 V LDO]
   U8 --> U1
