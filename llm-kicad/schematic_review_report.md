@@ -1,4 +1,4 @@
-# USB-C HIL Control — Schematic Review Report (v6)
+# USB-C HIL Control — Schematic Review Report (v8)
 
 **Project:** `llm-kicad` (USB-C HIL Control, HIL USB-C bench fixture)
 **Scope:** `llm-kicad.kicad_sch` + `01_power_cc`, `02_usb_hub_control`, `03_dut_interface`, `04_test_validation`
@@ -15,6 +15,8 @@
 | **v4** | 2026-09-27 (final) | Re-checked from scratch against the saved files after the owner's edit pass. Adds **H7** — the CP2102N GPIO map in the architecture contradicts the schematic, and following it would leave U4 disabled and J3 unable to advertise (the top schematic item). Adds the automated **pin-number vs pad-number audit** (101 footprints, 0 mismatches). Rewrites **M3** (all ERC suppression removed; 4 errors / 2 warnings) and **M11** (C5 is now a value/part/land three-way mismatch). Corrects matrix rows 16 and 22, adds a "Verified at v4" section and a **Where to continue** list. Supersedes v3. |
 | **v5** | 2026-09-28 | **H7 FIXED on the document side** after a measured routing study: all 5040 pin assignments were scored against the placed board, and the existing wiring turned out to be already crossing-free and within 1% of the shortest, so no pin swap was made and the architecture was corrected instead. Records the resulting `architecture_final.md` §6.1–§6.4 rewrite (table, configuration manifest, control-service example) and the removal of the bogus `GPIO.7` claim. Updates the verdict, matrix row 16 and the release gates. Supersedes v4. |
 | **v6** | 2026-09-28 | **Nine of eleven medium findings closed.** M4 and M8 **accepted** by owner decision, M11 **fixed** (C5 reverted to `47uF 10V` / C96123 / 1206 — value, part and land now agree; the audit is clean), and M9 **documented** as `architecture_final.md` §6.5 — which also corrected this report's own advice: a latched fault clears only when EN/UVLO goes *below* `VSD(F)` (0.45–0.74 V), not merely below the UVLO threshold (1.09 V). Only M3 and M10 remain. Supersedes v5. |
+| **v7** | 2026-09-28 | **M10 FIXED** — all 43 stray project-scope `instances` records removed. Verified byte-for-byte (replaying the deletion against the backups reproduces the live files exactly), ERC and audit unchanged, and the acceptance test passed: Konnect now resolves U2, U1, U5 and R34, the previously-refused symbols. **Only M3 remains open.** Supersedes v6. |
+| **v8** | 2026-09-28 | **Corrects a false claim in v4–v7.** Those revisions said *"all ERC suppression has been removed… the result is finally trustworthy"*. That was wrong: I had been reading `schematic.erc` (an empty decoy) instead of the top-level **`erc`** key, and my report greps filtered out the `; warning (excluded)` markers and the ` ** Ignored checks:` block. **The 3 exclusions were present the whole time.** M3 rewritten with the true state; verdict corrected. Also records that two of M3's four flags were genuinely added and verified on 2026-09-28 (`PWR_FLAG #FLG01` on `VBUS_PWR`; no-connect flags on U1 pins 5/6), and adds a tested forecast of what un-suppressing would surface (notably `footprint_filter` on U1's stale `ki_fp_filters`). Supersedes v7. |
 
 ---
 
@@ -22,19 +24,21 @@
 
 **ALL SEVEN HIGH FINDINGS CLEARED — TWO SMALL SCHEMATIC ITEMS AND ONE PCB FAB BLOCKER REMAIN.** H1–H5 (first pass), **H6** (crystal pad mapping — a hub-killing wiring defect) and **H7** (the CP2102N GPIO map, where the document contradicted the hardware and following it would have left U4 disabled and J3 unable to advertise) are all resolved. H7 was fixed on the **document** side, after a measurement showed the hardware wiring was already the routing optimum and that the document's own map would have been a regression.
 
-The design is in good shape and measurably better than at v3: a full **pin-number vs pad-number audit across all 101 placed footprints found zero mismatches**, **all ERC suppression has been removed** so the ERC result is finally trustworthy, the architecture document now matches the netlist pin-for-pin (verified programmatically, 7/7), and the USB-C CC/Rd/Rp implementation is fully compliant and needed no change.
+The design is in good shape and measurably better than at v3: a full **pin-number vs pad-number audit across all 101 placed footprints found zero mismatches**, the architecture document now matches the netlist pin-for-pin (verified programmatically, 7/7), and the USB-C CC/Rd/Rp implementation is fully compliant and needed no change.
 
-**Remaining schematic work is one functional item and one tooling item:** (1) **M3** — four flags (2 × `PWR_FLAG`, 2 × no-connect) to reach 0 ERC errors; (2) **M10** — clear the 43 stale `instances` records so scripted edits work again (no netlist, ERC, DRC or fabrication impact).
+**⚠️ One claim in v4–v7 was wrong, and is corrected here: the ERC suppression was never removed.** Three objects are still excluded and four checks are still set to `ignore` — see **M3**. The "1 error / 2 warnings" quoted by earlier revisions were suppressed counts, not real ones.
 
-**Nine of eleven medium findings are now closed:** M1, M2 and M11 fixed, M9's recovery contract written into the architecture, and M4/M5/M6/M7/M8 accepted by owner decision with the risk recorded in `architecture_final.md` §10.
+**Remaining schematic work is one flag and one cleanup, both under M3:** (1) add a `PWR_FLAG` to **GND** — the last genuinely undriven net (the `VBUS_PWR` flag and the two U1 port-4 no-connect flags were added on 2026-09-28 and verified); (2) delete the three `erc_exclusions`, and enable **`footprint_filter`** — which currently hides a real leftover, U1's stale `ki_fp_filters`. Nothing else on the schematic is open except the L1–L10 naming/documentation tidies.
+
+**Ten of eleven medium findings are closed:** M1, M2, M10 and M11 fixed, M9's recovery contract written into the architecture, and M4/M5/M6/M7/M8 accepted by owner decision with the risk recorded in `architecture_final.md` §10.
 
 | Severity | Count | Status |
 |---|---:|---|
 | **H** | 7 | **All 7 fixed and verified** |
-| **M** | 11 | M1, M2, M9, M11 **fixed** · M4, M5, M6, M7, M8 **accepted** (owner decision) · **M3, M10 open** |
-| **L** | 10 | Open (L1–L10) — documentation/tidiness only |
+| **M** | 11 | M1, M2, M9, M10, M11 **fixed** · M4, M5, M6, M7, M8 **accepted** (owner decision) · **M3 open** |
+| **L** | 11 | Open (L1–L11) — documentation/tidiness only |
 
-**Release gates (in order):** (1) **M3** — 2 `PWR_FLAG` + 2 no-connect flags → 0 ERC errors with nothing suppressed; (2) generate `cp2102n_config.hex` from §6.1 with the per-pin modes in §6.3, built from the netlist — not from the prose that H7 caught; (3) confirm the §6.5 fault-recovery contract on the prototype (mandatory prototype test 5); (4) PCB — fix U4's footprint polygons (the only *fabrication* blocker), route the last ~30 nets, restore the netclass via size to `0.5/0.3`.
+**Release gates (in order):** (1) **M3** — add the `PWR_FLAG` on GND, delete the three `erc_exclusions`, and enable `footprint_filter` (fixing U1's `ki_fp_filters`) → a truthful ERC with nothing hidden; (2) generate `cp2102n_config.hex` from §6.1 with the per-pin modes in §6.3, built from the netlist — not from the prose that H7 caught; (3) confirm the §6.5 fault-recovery contract on the prototype (mandatory prototype test 5); (4) PCB — fix U4's footprint polygons (the only *fabrication* blocker), route the last ~30 nets, restore the netclass via size to `0.5/0.3`.
 
 ---
 
@@ -237,22 +241,32 @@ Two further conclusions from the same measurement:
 - **Still open — placement.** Measured on the PCB, all four caps sat **5.9–6.6 mm** from U2 pads 6/7 (C24 5.88 mm, C28 6.58 mm at the last measurement), against a ≤3 mm target for the 100 nF parts. U2 is a 135°-rotated QFN-28 whose power pins face a region occupied by the R70–R75 dividers and TP10/TP15, so the caps ended up on the far side of the package. **Re-verify after the current placement pass** — the area immediately outward of pins 6/7 (≈160.5, 110.5) is where the two 100 nF parts belong, with the bulk within ~5 mm.
 - **Evidence:** CP2102N §2.1 + Figures 2.1–2.3 (note text confirmed identical on all three); JLCPCB catalogue rows for C1779/C52923/C1525; PCB pad-coordinate measurement. **Confidence: high** (requirement and values); **medium** (placement, being a layout property).
 
-### M3 — ERC status: all suppression removed; 4 errors and 2 warnings remain
-**Status: ❌ OPEN — four flags away from clean.** Substantially improved since v3: the project's `schematic.erc.rule_severities` and `erc_exclusions` are now **empty**, i.e. every check is back at its default severity and **nothing is suppressed**. The ERC result is finally trustworthy — which is why the count changed, not because the design got worse.
-- **Current ERC** (`kicad-cli 10.0.5 sch erc --severity-all`) → **6 violations — 4 errors, 2 warnings**:
+### M3 — ERC is still suppressed by 3 exclusions; 2 of its 4 flags are now done
+**Status: ❌ OPEN — the `VBUS_PWR` flag and the two U1 no-connect flags are done and verified; the GND flag and the exclusions remain.** **And this report's own earlier claim about M3 was wrong — see the correction below.**
+- **What the ERC actually reports now** (`kicad-cli 10.0.5 sch erc --severity-all`) → *3 messages, but **all three are marked `(excluded)`**, and four further checks are off at KiCad's own defaults*:
 
-| Violation | Objects | Fix |
+| Message | Object | State |
 |---|---|---|
-| `power_pin_not_driven` | `#PWR002` = `power:GND`, `04_test_validation` @ (30.48, 74.93) | `PWR_FLAG` on GND |
-| `power_pin_not_driven` | `#PWR004` = a `power:VSS` whose *Value* was renamed to **`VBUS_PWR`**, `04_test_validation` @ (82.55, 29.21) | `PWR_FLAG` on `VBUS_PWR` |
-| `pin_not_connected` ×2 | **U1 pins 5 (`DM4-`) and 6 (`DP4+`)** @ (160.02, 53.34 / 55.88) | no-connect flags |
-| `lib_symbol_mismatch` ×2 | **J1** (`Connector:USB_C_Receptacle_USB2.0_16P`) and **U1** (`Interface_USB:CH334F`) cached symbols differ from the library copies | update symbols from library, or document |
+| `lib_symbol_mismatch` | **J1** @ (35.56, 85.09) | **excluded**, with the comment *"Manually updated it."* |
+| `lib_symbol_mismatch` | **U1** @ (147.32, 66.04) | **excluded** |
+| `power_pin_not_driven` | **`#PWR002` = `power:GND`** @ (30.48, 74.93), sheet 04 | **excluded** — a real error hiding behind suppression |
+| `pin_not_connected` ×2 | U1 pins 5 (`DM4-`) / 6 (`DP4+`) | ✅ **genuinely fixed 2026-09-28** — no-connect flags added; gone from the report |
+| `power_pin_not_driven` | `VBUS_PWR` | ✅ **genuinely fixed 2026-09-28** — `PWR_FLAG #FLG01` added on sheet 01, wired to `#PWR068` (a `power:VSS` renamed `VBUS_PWR`); gone from the report |
 
-- **The hub now uses ports 1 and 2** (`U1.11/12` → CP2102N, `U1.9/10` → U5) and leaves **ports 3 and 4** unused. Port 3's pins (`U1.7/U1.8`) already carry no-connect flags; port 4's (`U1.5/U1.6`) do not — that is the source of the two `pin_not_connected` errors. In the v3 snapshot the unconnected pair was recorded as port 1; the design changed since.
-- **`VBUS_PWR`'s error is a direct consequence of the M1 fix:** the old 16-pin J2 symbol carried a `power_out` pin on VBUS, while the 6-pin replacement has passive pins, so the rail lost its driver. A `PWR_FLAG` is the right answer — not a symbol change.
-- **Secondary tidy:** a `power:VSS` (ground) graphic carrying the name of a 5 V rail is misleading to any reader. Replace it with a `PWR_FLAG` plus a net label.
-- **The warning worth keeping:** U1's `lib_symbol_mismatch` exists because the cached symbol was edited in place (the H1 footprint fix). A careless "update symbols from library" would revert it, so decide deliberately — update the library symbol to match, or keep the cached one and record why.
-- **Target state: ERC = 0 errors, 0 suppressed checks, and any remaining warning documented.**
+- **Where the settings really live:** the **top-level `erc` key** of `llm-kicad.kicad_pro` — *not* `schematic.erc`, which is an empty object and is a decoy.
+  - `erc_exclusions` — **three** entries: U1, J1 (comment *"Manually updated it."*) and `#PWR002`.
+  - `rule_severities` — records **four** checks as `ignore`: **`footprint_filter`**, `four_way_junction`, `simulation_model_issue`, `single_global_label`. **These are KiCad's stock defaults, not project-specific suppression** — verified on a throwaway copy: deleting the entire `rule_severities` map leaves the same four ignored, while setting them to `error` empties the "Ignored checks" list. The project file is only recording KiCad's out-of-the-box behaviour.
+- **Tested forecast — what un-suppressing would actually surface.** On a copy with the exclusions deleted and the four checks enabled, ERC reports **5 messages**: the GND error and the two `lib_symbol_mismatch` warnings, plus two new ones:
+  - **`footprint_filter` fires on U1** — *"Assigned footprint (qfn-24-1ep_4x4mm_p0.5mm_ep2.6x2.6mm_thermalvias) doesn't match footprint filters (QFN\*4x4mm\*P0.5mm\*EP2.7x2.7mm\*)"*. U1's cached `ki_fp_filters` still names the **H1-era** EP2.7x2.7 land while the footprint is now EP2.6x2.6 — a real, if cosmetic, leftover, and exactly the kind of thing this check exists to catch.
+  - **`single_global_label` fires once — and it is a minor real finding, not just noise.** The label is `VBUS_HIL` on sheet `04_test_validation` @ (53.34, 143.51). That net already spans sheets 01/03/04 through **six renamed power symbols** (`#PWR080`–`#PWR083` drawn as `power:+3.3V`, `#PWR006`/`#PWR0101` as `power:VSS`), so the global label duplicates a mechanism the design already uses. See **L11**.
+  - `four_way_junction` and `simulation_model_issue` surface **nothing**.
+- **⚠️ Correction to v4–v7 of this report.** Those revisions stated that *"all ERC suppression has been removed"* and that the six violations were "all honest now". **That was wrong.** Two mistakes compounded: I read `schematic.erc` instead of the top-level `erc` key, and I grepped the ERC report with `^\[` / `^\*\*`, which silently drops both the `; warning (excluded)` markers (they contain no `[`) and the ` ** Ignored checks:` block (it begins with a space, so `^\*\*` misses it). The suppression was present throughout. The v4–v7 counts were suppressed counts.
+- **Why it matters most:** `footprint_filter` — *"Assigned footprint doesn't match footprint filters"* — is the check that flags a symbol pin with no matching footprint pad. It is off by default, so the **M1 and H6 defect class is invisible to ERC out of the box**. That class is instead covered by `tools/audit_schematic.py`, which compares pin numbers to pad numbers directly: currently **0 mismatches of 101**.
+- **Genuine fix, in order:** (1) add a `PWR_FLAG` to **GND** — that is the real defect behind the excluded `#PWR002` error, and the identical fix already resolved `VBUS_PWR`; (2) delete all three `erc_exclusions`, so the report tells the truth; (3) enable **`footprint_filter`** and fix what it finds — U1's `ki_fp_filters` should read `…EP2.6x2.6mm*` (the H1 loose end, now confirmed by the check itself); (4) decide `single_global_label` explicitly (off is defensible here, but write down why); (5) then judge the two `lib_symbol_mismatch` warnings on their merits.
+- **The warning worth keeping:** U1's `lib_symbol_mismatch` exists because the cached symbol was edited in place (the H1 footprint fix). A careless "update symbols from library" would revert it, so decide deliberately — update the library symbol to match, or keep the cached one and record why. J1's carries the comment *"Manually updated it."*, which is a decision that needs to be written down rather than buried in an exclusion string.
+- **Secondary tidy:** `power:VSS` graphics renamed to a 5 V rail name (`#PWR004` on sheet 04, `#PWR068` on sheet 01) are misleading. Convert them to a **global label** (which names the net) plus the `PWR_FLAG` (which drives it) — do **not** simply delete them, or that sheet loses the net name.
+- **Target state: ERC = 0 errors, `erc_exclusions` empty, and no check disabled.**
+- **Evidence:** top-level `erc` key of `llm-kicad.kicad_pro` read directly (2026-09-28); full `kicad-cli` ERC report *including* the exclusions and the ignored-check list; `tools/audit_schematic.py` for the pin/pad check ERC cannot perform while `footprint_filter` is off. **Confidence: high.**
 - **Evidence:** fresh `kicad-cli` ERC report (2026-09-27T22:08); `.kicad_pro` `schematic.erc` read as an **empty object**; `#PWR002`/`#PWR004` identity, value and coordinates read from `04_test_validation.kicad_sch`; U1 pin numbers from the netlist. **Confidence: high.**
 
 ### M4 — U4 EN/UVLO has no supply-side UVLO divider
@@ -313,13 +327,21 @@ Two further conclusions from the same measurement:
 
 ---
 
-### M10 — 43 symbols carry a stale duplicate `instances` record (blocks tooling; no design impact)
-**Status: ❌ OPEN — tooling hygiene only, no design impact** (44 at v2, 43 now — one cleared when J2's symbol was replaced). Nothing in the netlist, ERC, DRC or fabrication is affected; it is recorded because it blocks scripted edits to the major parts.
-- **What:** each sub-sheet carries a second `instances` record naming the sheet *file* as the project — e.g. `(project "01_power_cc" (path "/5ebe429a-…" (page "1")))` alongside the correct `(project "llm-kicad" (path "/359235dd-…/63913550-…" (page "2")))`. KiCad writes this when a `.kicad_sch` is opened standalone instead of as part of the project.
-- **Scope (re-counted at v3):** **43** symbols (was 44 — one cleared when J2's symbol was replaced) — `01_power_cc` 12 (R27, C10, R28, C9, R30, R31, C11, C13, C12, R34, C14, R29); `02_usb_hub_control` 20 (including U1, U2, J1); `03_dut_interface` 9 (including U5, U6, J3, U10); `04_test_validation` 2.
-- **Impact:** none on the netlist, ERC, DRC or fabrication — KiCad resolves the record matching the open project. But Konnect's edit tools **refuse** any of those symbols with `ambiguous_target` (demonstrated on R28 and R34, which had to be corrected inside KiCad). Any future tooling that resolves symbols through the instance records will be blocked on U1, U2, U5, U6, U9, U10, J1 and J3 — all major parts.
-- **Fix:** remove the stale `(project "<sheetfile>" …)` records. This is a structural file edit that needs an explicit decision (Konnect has no tool for it); the alternative is to accept it and edit those parts in KiCad's UI.
-- **Evidence:** S-expression parse of all four sheets; two `ambiguous_target` refusals returned by `edit_schematic_component`. **Confidence: high.**
+### M10 — 43 stray project-scope `instances` records blocked scripted edits
+**Status: ✅ FIXED 2026-09-28 — verified byte-for-byte and by tool acceptance.** All 43 records removed; the resolver now works on every previously-blocked symbol.
+- **What it was:** each of 43 symbols carried a second `instances` record naming the sheet *file* as the project — e.g. `(project "01_power_cc" (path "/5ebe429a-…" (reference "R27") (unit 1)))` alongside the correct `(project "llm-kicad" (path "/359235dd-…/63913550-…" …))`. KiCad writes the stray entry when a `.kicad_sch` is opened **standalone** rather than through `llm-kicad.kicad_pro`, then treats the file as its own project.
+- **Why there is no built-in fix:** KiCad **must** keep per-project instance records, because a sub-sheet can legitimately be shared between projects (eeschema manual). A stray entry is therefore indistinguishable from a genuine shared-sheet entry, so neither KiCad nor Konnect (22 toolsets checked) offers a cleanup command — and a full project save does **not** prune them (confirmed: a save at 21:31 left all 43 in place).
+- **Fix applied:** deleted exactly the 43 `(project "<sheetfile>" …)` entries — **12** in `01_power_cc`, **20** in `02_usb_hub_control`, **9** in `03_dut_interface`, **2** in `04_test_validation` — using `tools/fix_stale_instances.py`.
+- **Safety, proven rather than asserted:** every one of the 43 symbols also carried its correct `llm-kicad` record with the same reference and unit, so no annotation could be lost; there were **no orphans**; and neither the root sheet nor `.kicad_pro` referenced those project names. The script refuses and writes nothing if any symbol would be left with only a stray record.
+- **Verification:**
+  - Stray records remaining: **43 → 0**. Valid `llm-kicad` records unchanged at **214**.
+  - **Byte-for-byte:** replaying the deletion against the pre-edit backups reproduces the live files **exactly**, for all four sheets — nothing but those records changed (0 lines added).
+  - ERC unchanged at **6 violations** (2 `power_pin_not_driven`, 2 `pin_not_connected`, 2 `lib_symbol_mismatch`); the audit still parses 101 components at **0 / 0 / 0**.
+  - **Acceptance test:** `get_schematic_component` resolves **U2, U1, U5 and R34** cleanly — R28/R34 were the documented `ambiguous_target` refusals. `annotate_schematic` reports `project: llm-kicad` with a **single** path, `unresolved: []`, `outside_project: []`.
+  - The fix survives a KiCad project re-save: the 21:31 save did not reintroduce any record.
+- **Note on method:** a deliberate, one-off exception to the "all `.kicad_*` edits go through Konnect tools" rule — justified because no Konnect tool exists for it, the change is a delimited deletion proven in the bullet above, and the script is gate-guarded, backed up and self-verifying. Backups: `*.kicad_sch.20260928-212841.bak`.
+- **Prevention:** always open `llm-kicad.kicad_pro`, never a `0X_*.kicad_sch` directly. If stray records reappear, re-running the script clears them.
+- **Evidence:** S-expression parse of all four sheets before and after; `diff` plus a replayed deletion against the backups; `kicad-cli` ERC; Konnect `annotate_schematic` (dry run) and `get_schematic_component` on four previously-blocked symbols. **Confidence: high.**
 
 ---
 
@@ -346,6 +368,8 @@ Two further conclusions from the same measurement:
 - **L8 — CH334F EEPROM pins:** pins 13 (`LED3/SCL`) and 21 (`LED4/SDA`) are left no-connect. Confirm with WCH that a floating EEPROM interface reliably selects the PSELF-based internal default at reset rather than attempting an EEPROM read.
 - **L9 — Cost/manufacturing note:** 14 of 16 catalog parts are JLCPCB **Extended** (only the crystal C9002 and generic passives are Basic) → expect extended-part setup fees per unique extended part. Stock verified in the local JLCPCB cache: CH334F 4,701 · TPS259470LRPWR 2,828 · TYPE-C-31-M-17 9,030 · TLV76733DRVR 17,654 · TPS2121RUXR 37,162 · CP2102N 42,887 · TS3USB221A 92,249 · SN74LVC1G125 91,530 · TYPE-C-31-M-12 90,528 · TPD4E05U06 167,721 · BSS138P 463,553 · R31 (C852955) 5,699.
 - **L10 — Fault LED loading:** LED3 (red) shares `HIL_FLT_N` with CP2102N GPIO.0. Logic verified correct (lit when FLT pulls low at ≈1.5 mA; node returns to ≈3.3 V through R34 when not faulted), but the TPS259470L datasheet does not state the FLT pin's sink capability — confirm 1.5 mA is acceptable.
+- **L11 — `VBUS_HIL` is named two different ways, and drawn with the wrong power-symbol graphics (new 2026-09-28).** The net spans sheets 01/03/04 through **six renamed power symbols** — `#PWR080`–`#PWR083` are `power:+3.3V` symbols whose *Value* was changed to `VBUS_HIL`, and `#PWR006`/`#PWR0101` are `power:VSS` symbols likewise renamed — **plus one redundant global label** `VBUS_HIL` on sheet 04 @ (53.34, 143.51), which is exactly what `single_global_label` flags. Electrically fine: the netlist confirms a single net spanning all three sheets. But a 5 V rail drawn with 3.3 V **and** ground symbol graphics is misleading on the sheet, and using two naming mechanisms for one net invites confusion. Same family as the `power:VSS`-named-`VBUS_PWR` symbols noted under M3.
+  - **Recommend:** keep the power symbols (they *are* this design's cross-sheet mechanism, and they work), **delete the redundant global label**, and if the graphics matter give each rail its own power symbol so the symbol shape matches the voltage it carries.
 
 ---
 
@@ -535,7 +559,7 @@ Priority order for the next session. Items 1–3 are schematic; 4 and below are 
 4. **P1 — U4's footprint polygons** (the only *fabrication* blocker): give the exposed pad a real `GND` pad, or delete the four no-net `F.Cu` polygons.
 5. **Restore the netclass via size** in `Default` and `USB_90` to `0.5/0.3`, and drop `0.45/0.3` from the pre-defined size list — otherwise the next via routed on netclass defaults comes out at 0.45 and re-breaks `annular_width`.
 6. **Finish the layout:** route the last ~30 nets, clear `starved_thermal`, raise the 0.2 mm drills inside U1/U8, tidy silkscreen and dangling tracks.
-7. **Decisions still owed:** **M10** (clear the 43 stale `instances` records so tooling can edit U1/U2/U5/U6/U9/U10/J1/J3 again) and **L1–L10** (naming and documentation tidies). **M4, M5, M6, M7, M8 are accepted** and recorded in `architecture_final.md` §10; **M9 is documented in §6.5**; **M11 is fixed**.
+7. **Decisions still owed:** **L1–L10** (naming and documentation tidies) only. **M4, M5, M6, M7, M8 are accepted** and recorded in `architecture_final.md` §10; **M9 is documented in §6.5**; **M10 and M11 are fixed**.
 
 ---
 

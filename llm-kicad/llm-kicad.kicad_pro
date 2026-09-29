@@ -61,7 +61,7 @@
           "hatch_smoothing_value": 0.1,
           "hatch_thickness": 1.0,
           "min_clearance": 0.2,
-          "min_island_area": 0.0013161349,
+          "min_island_area": 10.0,
           "min_thickness": 0.25,
           "pad_connection": 2,
           "remove_islands": 0,
@@ -76,7 +76,84 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        [
+          "lib_footprint_mismatch|143284999|101845000|5d78a541-24a1-4c7a-bc5e-7abfc41aebb2|00000000-0000-0000-0000-000000000000",
+          ""
+        ],
+        [
+          "lib_footprint_mismatch|154247500|96112500|1d0e169e-369f-490f-8e3f-b6f66d14b9d6|00000000-0000-0000-0000-000000000000",
+          ""
+        ],
+        [
+          "lib_footprint_mismatch|161900001|96049999|13d73574-20c9-4f2d-86e9-b9b34bda7f6b|00000000-0000-0000-0000-000000000000",
+          ""
+        ],
+        [
+          "silk_edge_clearance|140000000|106425000|ba187a19-1d38-4d93-a120-4a80f55a9744|25cd9e0e-9898-480f-9bd3-60a0ed56d8ed",
+          ""
+        ],
+        [
+          "silk_edge_clearance|140000000|113300000|ba187a19-1d38-4d93-a120-4a80f55a9744|6086d12f-f887-4969-a844-b6745d566ce9",
+          ""
+        ],
+        [
+          "silk_edge_clearance|140000000|122700000|ba187a19-1d38-4d93-a120-4a80f55a9744|c0a4f1d2-e2c6-465e-b49d-e920a95bfec3",
+          ""
+        ],
+        [
+          "silk_edge_clearance|140000000|97265000|ba187a19-1d38-4d93-a120-4a80f55a9744|a249d60a-017a-44af-99a4-f3505ea9585e",
+          ""
+        ],
+        [
+          "silk_edge_clearance|190000000|105300000|9e39bb32-99dc-4dff-b774-52ab68e85dd0|0dc3a4ac-e631-4da2-ac88-04bc19d80a2c",
+          ""
+        ],
+        [
+          "silk_edge_clearance|190000000|114700000|9e39bb32-99dc-4dff-b774-52ab68e85dd0|211587ce-04a5-4db0-a865-e92975e64886",
+          ""
+        ],
+        [
+          "starved_thermal|147495000|114750000|ced185b2-7c58-4a15-8b9b-73c0998fffc9|3db2e91e-7502-429e-8c62-15d80c2aca8e|F.Cu",
+          ""
+        ],
+        [
+          "starved_thermal|147495000|114750000|ced185b2-7c58-4a15-8b9b-73c0998fffc9|bdb433e9-418c-48eb-a6ea-9c2409f3de19|F.Cu",
+          ""
+        ],
+        [
+          "starved_thermal|154200000|97000000|ced185b2-7c58-4a15-8b9b-73c0998fffc9|d7f6b745-1d99-47c2-ab27-47438efcd40f|F.Cu",
+          ""
+        ],
+        [
+          "starved_thermal|161230001|100310000|ced185b2-7c58-4a15-8b9b-73c0998fffc9|c49571aa-260a-4cd6-af0b-9715a9e34151|F.Cu",
+          ""
+        ],
+        [
+          "starved_thermal|169339411|108960589|ced185b2-7c58-4a15-8b9b-73c0998fffc9|d4ba65ef-0348-423d-a46b-b0322ec07db1|F.Cu",
+          ""
+        ],
+        [
+          "starved_thermal|169489411|110160589|ced185b2-7c58-4a15-8b9b-73c0998fffc9|adfe54f4-2e3b-427c-9bc4-0f884b88c5fd|F.Cu",
+          ""
+        ],
+        [
+          "starved_thermal|171351248|104868752|ced185b2-7c58-4a15-8b9b-73c0998fffc9|79e59800-f8fe-4d35-a8d7-71fac083714b|F.Cu",
+          ""
+        ],
+        [
+          "starved_thermal|175950000|110400000|ced185b2-7c58-4a15-8b9b-73c0998fffc9|ba184f93-9023-4d4e-9cde-d9ea5590bdf1|F.Cu",
+          ""
+        ],
+        [
+          "starved_thermal|182955000|113250000|ced185b2-7c58-4a15-8b9b-73c0998fffc9|25a0db98-4a83-4d2c-9d25-2dfc54e628e1|F.Cu",
+          ""
+        ],
+        [
+          "starved_thermal|182955000|113250000|ced185b2-7c58-4a15-8b9b-73c0998fffc9|d41abc99-8635-4b23-82b0-fe027aeec32e|F.Cu",
+          ""
+        ]
+      ],
       "meta": {
         "version": 2
       },
@@ -296,6 +373,10 @@
       [
         "lib_symbol_mismatch|1473200|660400|39b806ba-8084-45e0-90cd-1a509b051dec|00000000-0000-0000-0000-000000000000|||",
         ""
+      ],
+      [
+        "lib_symbol_mismatch|355600|850900|fb4d8a47-3218-431d-968d-94adcbaf2fc7|00000000-0000-0000-0000-000000000000|||",
+        "Manually updated it."
       ],
       [
         "power_pin_not_driven|304800|749300|fadaa993-1902-4830-bfe7-1d60407b06d5|00000000-0000-0000-0000-000000000000|/359235dd-5d26-44dd-816b-e50cf2415bb3/70a84e5a-da0c-48ec-8ad4-4d03aebcafb4|/359235dd-5d26-44dd-816b-e50cf2415bb3/70a84e5a-da0c-48ec-8ad4-4d03aebcafb4|",
@@ -756,7 +837,7 @@
         "uuid": "359235dd-5d26-44dd-816b-e50cf2415bb3"
       }
     ],
-    "used_designators": "Y2,J4,#PWR1-108,C2,C4,C28,R6,R35,H1-4",
+    "used_designators": "H1-4,R6,R35,C2,C4,C28,#PWR1-112,#PWR206-207,#PWR210,J4,Y2,TP9,TP16-18,U3,#FLG1-2,IC1",
     "variants": []
   },
   "sheets": [

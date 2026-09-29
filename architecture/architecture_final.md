@@ -156,9 +156,9 @@ corrected to the hardware, not the hardware to the table.
 | GPIO.0 | 19 | `HIL_FLT_N` | digital input | in | low = U4 fault | pull-up |
 | GPIO.1 | 18 | `VBUS_HIL_SNS` | digital input | in | high = HIL VBUS present | divider |
 | GPIO.2 | 17 | `HIL_CC_EN_N` | output, open-drain | out | low enables U6 Rp | released / high |
-| GPIO.3 | 16 | `VBUS_PWR_SNS` | digital input | in | high = J2 present | divider |
+| GPIO.3 | 16 | `U14_ST` | digital input | in | **low = `VBUS_PWR` selected** | R33 10 kOhm pull-up |
 | GPIO.4 | 22 | `HIL_DATA_EN_N` | output, open-drain | out | low enables U5 | released / high |
-| GPIO.5 | 21 | `VBUS_UP_SNS` | digital input | in | high = J1 present | divider |
+| GPIO.5 | 21 | `EXT_IO0` | output, open-drain, high drive | out | **low = opto LED on** | released / high |
 | GPIO.6 | 20 | `HIL_VBUS_EN` | output, **push-pull** | out | high enables U4 | low |
 
 Three points that the mode column depends on:
@@ -171,14 +171,47 @@ Three points that the mode column depends on:
   (U5 OE#) and R49 = 100 kOhm (U6 OE#) respectively, so their released state is
   high = disabled. Push-pull would also work; open-drain is used so the reset
   default is already the safe state.
-- All four sense pins are plain inputs into 3.3 V-tolerant dividers. GPIO.0-GPIO.3
-  have alternate functions (TXT / RXT / RS485 / WAKEUP on QFN28) — all unused and
-  to be left disabled. GPIO.4-GPIO.6 have no alternate function.
+- GPIO.5 **must be open-drain with latch = 1**, so it is inert at reset and through USB
+  suspend. The opto LED is wired anode-to-`+3.3V` through R76 = 330 Ohm, cathode to the pin,
+  so the pin sinks about 5.6 mA to turn the line on. That is why **high drive** is required:
+  low drive sinks only 6.5 mA, which is right at the LED current; high drive sinks 13.5 mA.
+  Push-pull would work electrically but its reset state is indistinguishable from asserted if
+  the latch is ever set to 0.
+- All **two** remaining sense pins (`HIL_FLT_N`, `VBUS_HIL_SNS`) are plain inputs into
+  3.3 V-tolerant networks. GPIO.0-GPIO.3 have alternate functions (TXT / RXT / RS485 /
+  WAKEUP on QFN28) - all unused and to be left disabled. GPIO.4-GPIO.6 have none.
 
-`VBUS_PWR_SNS`: R70 = 100 kOhm from VBUS_PWR, R71 = 100 kOhm to GND, R72 = 1 kOhm
-series to GPIO.3. `VBUS_UP_SNS`: R73 = 100 kOhm from VBUS_UP, R74 = 100 kOhm to
-GND, R75 = 1 kOhm series to GPIO.5. `VBUS_HIL_SNS` is in §5.2. All four use
-3.3 V-tolerant GPIO inputs only.
+`VBUS_HIL_SNS` is in §5.2, and `HIL_FLT_N` comes from U4's FLT pin.
+
+**Changed 2026-09-29 - both VBUS sense dividers were removed.** `VBUS_PWR_SNS`
+(R70/R71/R72) and `VBUS_UP_SNS` (R73/R74/R75) are deleted from the schematic, and their
+test points TP13/TP15 with them. GPIO.5 is needed as an output for the one external
+control line that fits, and GPIO.3 is the only other pin whose sense function could be
+spent, so neither source can be read directly any more. §6.6.4 is therefore moot: the
+sub-`V_IH` divider defect it describes no longer exists in the design, because the
+dividers do not exist.
+
+**`U14_ST` replaces them.** U14 is a TPS2121, and its `ST` pin is an open-drain status
+output - TPS2121 datasheet, Recommended Operating Conditions: `V_ST` 0-5.5 V and
+**`R_ST` "Status Pin Pull Up Resistance" = 6-20 kOhm, an *external* pull-up** (it sits
+next to `R_ILM` 18-100 kOhm, which is also external). R33 = 10 kOhm to `+3.3V` is inside
+that range, and because the part has no internal pull-up the high level is exactly 3.3 V -
+comfortably above the CP2102N's `V_IH` = 2.7 V, and never above 3.3 V.
+
+Datasheet behaviour: *"ST is pulled high when the output is Hi-Z or IN1. It is pulled low
+when IN2 is powering the output."* On this board U14 pin 7 (`IN1`) is `VBUS_UP` and pin 2
+(`IN2`) is `VBUS_PWR`, so:
+
+| `U14_ST` (GPIO.3) | Meaning |
+|---|---|
+| high (1) | `VBUS_UP` (upstream USB-C) is powering VSYS, **or** the output is Hi-Z |
+| low (0) | `VBUS_PWR` (auxiliary supply) is powering VSYS |
+
+The Hi-Z case is unobservable in practice - both inputs invalid means the fixture is
+unpowered. **The polarity is inverted relative to the old `VBUS_PWR_SNS`**, which read
+high = present; firmware must flip the bit. The accepted loss is that only the *selected*
+source is visible, so "both inputs present at once" can no longer be asserted - that was
+the condition that would have verified U14's priority switchover.
 
 ### 6.2 Control truth table
 
@@ -197,13 +230,18 @@ this table is what the pin-permutation defect was. In Xpress Configurator:
 
 | Setting | Value |
 |---|---|
-| GPIO.0, GPIO.1, GPIO.3, GPIO.5 | digital input |
+| GPIO.0, GPIO.1 | digital input |
+| **GPIO.3** | **digital input** (reads U14 `ST`) |
 | GPIO.2, GPIO.4 | digital output, **open-drain**, latch = 1 |
+| **GPIO.5** | **digital output, open-drain, HIGH DRIVE, latch = 1** |
 | GPIO.6 | digital output, **push-pull**, latch = 0 |
 | GPIO.0-GPIO.3 alternate functions | disabled (TXT / RXT / RS485 / WAKEUP unused) |
 | Suspend behaviour | leave at the default (pin latches hold during USB suspend) |
 | Power | self-powered, max power 100 mA |
-| UART / modem / charging pins | unused — RXD, TXD, RTS, CTS, DTR, DSR, DCD, RI/CLK, CHREN, CHR0/1 are all unconnected |
+| UART | RXD (25) and TXD (26) are no-connect, as before |
+| Modem pins | `RTS` (24) and `DTR` (28) are output-only test points (TP9/TP16) and need **no** host configuration; `CTS` (23), `DSR` (27), `DCD` (1) and `RI/CLK` (2) stay no-connect |
+| Charging pins | CHREN, CHR0/CHR1 unconnected |
+| Hardware flow control | **off** |
 
 Release artifact: the generated `.hex`, its SHA-256, and the serial-number
 policy. Never allow blank parts into PCBA; program and read back every unit
@@ -221,9 +259,9 @@ startup before enabling anything.
 LINE = {"hil_flt_n": 0,   # GPIO.0 pin 19  input
         "vbus_hil_sns": 1, # GPIO.1 pin 18  input
         "cc_en_n": 2,      # GPIO.2 pin 17  open-drain output
-        "vbus_pwr_sns": 3, # GPIO.3 pin 16  input
+        "u14_st": 3,       # GPIO.3 pin 16  input; LOW = VBUS_PWR powering VSYS
         "data_en_n": 4,    # GPIO.4 pin 22  open-drain output
-        "vbus_up_sns": 5,  # GPIO.5 pin 21  input
+        "ext_io0": 5,      # GPIO.5 pin 21  open-drain output; LOW = opto LED on
         "vbus_en": 6}      # GPIO.6 pin 20  push-pull output
 
 
@@ -237,14 +275,34 @@ def hil_off():
 
 
 def hil_on(high_current=False):
-    if high_current and not vbus_pwr_sns.get():
-        raise RuntimeError("qualified J2 source required")
+    # high_current means the DUT is to run from the auxiliary supply, so that supply
+    # must be the one actually powering VSYS. U14_ST is now the only way to know:
+    # it reads LOW exactly when U14 has selected IN2 = VBUS_PWR.
+    if high_current and u14_st.get():
+        raise RuntimeError("aux supply not selected - is J2 connected and valid?")
     cc_en_n.set(0)
     sleep(0.010)          # let Rp settle before presenting VBUS
     vbus_en.set(1)
     wait_until(lambda: vbus_hil_sns.get() and hil_flt_n.get(), timeout=1.0)
     sleep(0.040)          # inrush/ramp settles before closing the data path
     data_en_n.set(0)
+
+
+def ext_out(asserted):
+    """Drive the single external opto-isolated line.
+
+    Path: GPIO.5 -> U15 LED -> U15 collector -> EXT_OUT0 -> U3 clamp -> J4 pin 2.
+    Active low, and the polarity is preserved end to end: asserted sinks the LED,
+    which turns the phototransistor on and pulls the far-side node to GND.
+    Released (and unpowered) leaves it pulled up by R79, so the DUT-side default
+    is the inert high.
+    """
+    ext_io0.set(0 if asserted else 1)
+
+
+def source_selected():
+    """'vbus_pwr' | 'vbus_up'. Note ST is inverted versus the old sense divider."""
+    return "vbus_pwr" if not u14_st.get() else "vbus_up"
 ```
 
 A fault-recovery path is also required — see §6.5.
@@ -308,6 +366,310 @@ about 0 V.
   so the EN toggle is the only practical recovery path — which is exactly why the
   hard-low requirement matters. Confirm it on the prototype (mandatory prototype
   test 5).
+
+### 6.6 Planned change: additional host-controllable I/O (partly built)
+
+**Status 2026-09-29: BUILT, and reduced from three channels to one.** Only one external
+line fits the board, so sheet 04 carries a single optocoupler stage (`U15`) driven by GPIO.5,
+with its clamp, filter capacitor and 2-pin connector. `DTR` and `RTS` were **not** given opto
+stages - they are broken out as test points `TP9`/`TP16` instead. §6.1 is now the as-built
+record for the seven GPIOs. What remains is the config image and the PCB work.
+
+**Interface decision (revised from the first draft):** the output stage uses an
+**optocoupler**, not a directly-driven open-drain line. For "might be 3.3 V, might be 5 V" the
+opto is the better answer: the far-side logic level is set by the far side's own pull-up, so
+one board works at any level, and the barrier means a mis-wire on the connector provably
+cannot reach the CP2102N. It supersedes the DNP `BSS138` branch — do not fit both.
+
+Motivation: the fixture needs general-purpose lines the host can drive to control external
+equipment. The first use case is enabling and cutting power to the DUT from an **external
+bench supply**, independently of the on-board U4 eFuse path.
+
+#### 6.6.1 Where the extra lines come from
+
+CP2102N §4.3.1 caps the part at "up to 7 GPIO", so there is no eighth GPIO, and the rail
+senses cannot be merged onto one pin because the GPIOs are **digital only — the part has no
+ADC**, so a resistor ladder cannot distinguish levels. The extra lines therefore come from
+two places: one freed GPIO, and the part's unused modem-control interface.
+
+| Line | Source | Direction | Notes |
+|---|---|---|---|
+| `EXT_IO0` | GPIO.5 (pin 21), freed | out | was `VBUS_UP_SNS` |
+| `EXT_IO1` | `RTS` (pin 24) | out | test point `TP9` only - no opto fitted |
+| `EXT_IO2` | `DTR` (pin 28) | out | test point `TP16` only - no opto fitted |
+| `U14_ST` | GPIO.3 (pin 16) | in | takes over from `VBUS_PWR_SNS` |
+
+#### 6.6.2 `U14_ST` to GPIO.3, freeing GPIO.5
+
+TPS2121 `ST` is an open-drain status output: **high = IN1 (`VBUS_UP`) is feeding VSYS;**
+**low = IN2 (`VBUS_PWR`) is feeding VSYS.** In this design U14 pin 7 = IN1 = `VBUS_UP` and
+pin 2 = IN2 = `VBUS_PWR`, and J2 has hard priority through the CP2/PR1 comparison. ST is
+also high when the output is Hi-Z, which is unobservable here: with no selected source the
+board is unpowered and the host cannot read the pin. One pin therefore carries both
+input-presence facts, so it replaces `VBUS_PWR_SNS` **and** `VBUS_UP_SNS`:
+
+- GPIO.3 takes `U14_ST`. The net must become a **global label** — this project has no
+  hierarchical labels, and U2 lives on a different sheet from U14.
+- GPIO.5 becomes **free**: delete R73/R74/R75 and the `VBUS_UP_SNS` label. TP15 sits on that
+  net and goes with it — re-point TP15 at `VBUS_UP` if raw-rail probing is still wanted.
+- Delete R70/R71/R72 and the `VBUS_PWR_SNS` label; TP13 goes with it.
+
+**No new components are needed for this.** `R33` is already a 10 kOhm pull-up from `U14_ST`
+to `+3.3V`, so ST is already a clean 3.3 V logic signal — **do not add a divider.**
+
+**Polarity inverts.** The old `VBUS_PWR_SNS` read high = present; `U14_ST` reads **low =
+`VBUS_PWR` selected**. The firmware bit must be updated with it.
+
+**Accepted loss:** ST reports only the *selected* source, so "both inputs present at once"
+is no longer observable. That is precisely what would be checked to verify U14's priority
+switchover, so if that test matters, keep `VBUS_PWR_SNS` and put ST on GPIO.5 instead —
+which then frees nothing.
+
+#### 6.6.3 `DTR` and `RTS` as extra outputs
+
+These are **modem-control functions, not GPIO** (CP2102N §4.3.11), enabled by the VCP
+driver when the host configures the COM port. From Linux via pySerial: `p.dtr = True`,
+`p.rts = ...` to drive; `p.cd`, `p.dsr`, `p.ri`, `p.cts` to read. This is a **second device
+node**, not the cp210x gpiochip.
+
+Two cautions straight from the datasheet:
+
+- **"DTR ... may toggle when opening a COM port on some operating systems."** For a
+  power-control line this is the main practical hazard; choose a polarity where the toggle is
+  inert, or filter it (100 kOhm / 100 nF = about 10 ms into a Schmitt input).
+- Do not enable RTS/CTS **hardware handshaking** (§4.3.7) if RTS is repurposed.
+
+`DCD` (1), `DSR` (27), `RI` (2) and `CTS` (23) stay no-connect for now. They are the
+documented extension path for host-readable inputs.
+
+#### 6.6.4 Defect found while deriving this: two sense dividers are below `V_IH`
+
+CP2102N Table 3.7 gives **`V_IH` = VIO - 0.6 = 2.7 V** (VIO = VDD = 3.3 V; the QFN28 has no
+separate VIO pin). Against that:
+
+| Sense | Divider | Level at VBUS = 5.0 V | vs `V_IH` = 2.7 V |
+|---|---|---|---|
+| `VBUS_PWR_SNS` | R70 100 kOhm / R71 100 kOhm | **2.50 V** | below spec |
+| `VBUS_UP_SNS` | R73 100 kOhm / R74 100 kOhm | **2.50 V** | below spec (net being removed anyway) |
+| `VBUS_HIL_SNS` | R38 10 kOhm / R39 18 kOhm | 3.21 V | fine |
+
+At the USB minimum of 4.75 V the first two fall to 2.375 V. They work in practice — real
+thresholds sit nearer VDD/2 — but they are out of specification and should not be relied on
+in a fixture.
+
+**Fix:** change **R71 from 100 kOhm to 150 kOhm** (3.00 V at 5.0 V, 2.85 V at 4.75 V, both
+comfortably above 2.7 V). R74 disappears with `VBUS_UP_SNS`. The replacement sense needs no
+change: R33 already pulls `U14_ST` to `+3.3V`.
+
+#### 6.6.5 External interface: protection rules
+
+The CP2102N is the only host link on the board — if it is damaged the whole fixture becomes
+unreachable — so it must be the best-protected part on the board. Threats on an exposed
+line: ESD through the connector, a mis-wire putting an external rail onto a signal, a short
+to GND, reverse polarity, ground offset between fixture and external equipment, inductive
+kickback, and hot-plug transients.
+
+Rules adopted:
+
+1. **Never take the chip pin to a connector unbuffered.** Series resistor (100 Ohm) plus a
+   clamp **at the connector**, not at the chip.
+2. **Reuse the existing ESD array.** `TPD4E05U06` (already fitted as U9/U10/U11 — 4 channels,
+   5.5 V working voltage, +/-12 kV contact) covers four lines with one part. It clamps
+   *transients*; it is not sustained-overvoltage protection.
+3. **Open the interface where the part allows it.** Table 3.7 specifies input leakage for
+   `VIO < VIN < VIO + 2.0 V`, and §4.3.3 permits an open-drain output to be "pulled to the
+   higher, external voltage through an external pull-up resistor". So reaching 5 V needs no
+   level shifter. Keep any external pull-up at or below `VIO + 2 V` (5.3 V).
+4. **Above about 5 V, or driving real current, needs a barrier.** `BSS138` is already in the
+   BOM (Q2/Q3/Q6/Q7); at 60 V Vds / +/-20 V Vgs it survives a 12/24 V mis-wire. Per-line
+   barrier footprints are placed but **DNP**, so a line can be converted without a respin.
+5. **Define the safe state in all four conditions**: unpowered, during reset, with the port
+   closed, and during USB suspend. The GPIO default is open-drain with a weak pull-up and
+   latch = 1, i.e. released/high; §4.3.1 makes the suspend and post-reset states
+   configurable, so set them explicitly in the config image.
+6. **Keep "loss of host = safe".** If the PC crashes or the cable is pulled, DTR normally
+   releases — arrange the external logic so the DUT then loses power.
+7. **Connector hygiene**: keyed or unambiguously silkscreened, a GND pin adjacent to every
+   signal, a DNP series-resistor footprint per line, a test point per line, and the clamp
+   return kept short to the In1/B.Cu ground plane. If the lines leave the enclosure on a
+   cable, add 100 pF - 1 nF per line to ground and consider a common-mode choke.
+
+#### 6.6.6 Circuit adopted per output line
+
+> **Superseded (2026-09-29).** This variant was not adopted. The operator rejected taking a
+> CP2102N pin to a connector at all, and chose an optocoupler buffer instead — see §6.6.9.
+> The text below is kept as the record of the alternatives that were considered, including
+> the DNP `BSS138` branch, which is no longer needed because the opto already provides the
+> barrier.
+
+```
+CP2102N pin --[100R]--+-- connector pin --+-- [10k] to GND
+                      |                   +-- [100pF] to GND
+                      |                   +-- TPD4E05U06 channel
+                      +-- [DNP: BSS138 gate + 100k to GND, drain pulled to external rail]
+```
+
+Output mode: **push-pull, default low**. `EXT_IO0`/`EXT_IO1`/`EXT_IO2` therefore read
+**low = inert** at the connector, which is also the state with the board unpowered (the
+10 kOhm pull-down). The DNP `BSS138` branch converts a line to an inverting open-drain drive
+whose high level is set by the far side, for a >5 V or active-low load.
+
+New connector **J4**, 1x6 keyed header: `GND, EXT_IO0, EXT_IO1, EXT_IO2, EXT_IN0, EXT_IN1`.
+The two `EXT_IN` positions are reserved and unpopulated for now; populating them costs one
+divider each and shares the existing ESD array.
+
+Assumptions taken when this was written (the operator was not available to confirm them):
+the far side is a **high-impedance logic input**; the external domain is **3.3 V, with up to
+24 V mis-wire tolerance via the DNP barrier**; **common ground** is assumed, so no galvanic
+isolation is fitted — if the external equipment turns out to be floating or on a separate
+earth, an opto or digital isolator stage is required instead, and the DNP footprint is where
+it goes.
+
+#### 6.6.7 What the change touches
+
+- `01_power_cc.kicad_sch`: `U14_ST` promoted to a global label; R70/R71/R72 and R73/R74/R75
+  removed; `VBUS_UP_SNS` and `VBUS_PWR_SNS` labels removed.
+- `02_usb_hub_control.kicad_sch`: U2 pins 21, 28 and 24 un-no-connected; new `EXT_IO*`
+  labels; new J4 and its protection network.
+- `architecture_final.md`: this section, plus §6.1, §6.2 (source-selection readback) and §9 BOM.
+- `cp2102n_config.hex`: regenerate — GPIO.5 push-pull output with its reset and suspend latch
+  set to the inert state; GPIO.3 unchanged as a digital input; confirm no handshaking.
+- Linux control service: `EXT_IO0` still on the cp210x gpiochip; `EXT_IO1`/`EXT_IO2` and any
+  inputs through pySerial on the VCP device node.
+
+#### 6.6.8 Implementation status and the built circuit
+
+**Built on sheet 04 (`04_test_validation.kicad_sch`), right-hand side - ONE channel:**
+
+| Ref | Part | Value | Footprint | LCSC |
+|---|---|---|---|---|
+| U15 | `Isolator:PC817` symbol, LTV-217 part | `LTV-217` | `Package_SO:SOP-4_4.4x2.6mm_P1.27mm` | C115450 |
+| R76 | LED series resistor | `330R 0402` | `R_0402_1005Metric` | C25104 |
+| R79 | output pull-up | `10k 0402` | `R_0402_1005Metric` | C25744 |
+| U3 | 4-channel ESD clamp array | `TPD4E05U06DQA` | `Package_SON:USON-10_2.5x1.0mm_P0.5mm` | C138714 |
+| C2 | connector filter capacitor | `100pF` | `Capacitor_SMD:C_0402_1005Metric` | C1546 |
+| J4 | far-side connector | 1x2, 2.54 mm | `PinHeader_1x02_P2.54mm_Vertical` | C49257 |
+| TP9, TP16 | `DTR` / `RTS` breakout | `EXT_I01`, `EXT_02` | - | C49257 |
+
+Wiring: `+3.3V` - R76(330R) - U15 pin 1 (anode); U15 pin 2 (cathode) - global label
+`EXT_IO0`; U15 pin 3 (emitter) - GND; U15 pin 4 (collector) - global label `EXT_OUT0`,
+R79(10k) to `+3.3V`, C2 to GND, and U3 channel D1+ (plus its straight-through NC pin 10,
+which TI sanctions) on to J4 pin 2.
+
+`U15` is driven by **GPIO.5 (pin 21)** - `EXT_IO0` reaches `U2.21`. The two unused clamp
+channels and the other three `TPD4E05U06` pins are left floating.
+
+**Note:** only one of the array's four channels is used, so the 10-pin USON `U3` is now
+larger than the job needs. The same device family has a single-channel part,
+**`TPD1E05U06`** (2-pin X1SON 0.6x1 mm or DFN1006-2; C2937017 $0.033, C436349 $0.06,
+C3001953 $0.024) - worth swapping if board space gets tight. TI's layout footnote still
+applies: keep it at the connector.
+
+- **Drive the LED by sinking, never sourcing.** The CP2102N is asymmetric: 7 mA source but
+  **13.5 mA sink** in high-drive mode (3.1.7). +3.3 V through 330 Ohm gives about **5.6 mA**
+  of LED current, right at the LTV-217's 5 mA CTR test condition. Configure the driving GPIO
+  as **open-drain, high drive** — released/high is then LED off, i.e. the reset and suspend
+  defaults are already the inert state.
+- **Connector polarity is active-low**: the phototransistor conducts and pulls the far-side
+  node low when the LED is on. An active-high far side needs one extra inversion stage.
+- **CTR is 130-260 % at 5 mA**, so the 10 kOhm pull-up is comfortable even at half typical
+  CTR and after CTR degradation with age and temperature.
+- **Cost of the choice:** about 5.6 mA from the 3.3 V rail whenever the line is asserted,
+  microsecond edges, and one extra 4-pin part. (Three channels were once planned; only one
+  is fitted, so the rail cost is one third of the figure quoted in earlier revisions.)
+- The `isolated_pin_label` warnings are **gone**. They cleared once `EXT_IO0` reached
+  `U2.21` on sheet 02.
+
+**Trap hit and fixed while placing these:** `add_power_symbol` auto-numbers `#PWR` "to the
+lowest number free **on the sheet**", which collided with sheet 02 (it produced `#PWR010`..
+`#PWR015`, all already used there). KiCad requires `#PWR` references to be unique across the
+whole project; the duplicates made `kicad-cli sch export netlist` print *"schematic has
+annotation errors"*. They were renumbered to `#PWR0200`..`#PWR0205`. Always check `#PWR`
+uniqueness **project-wide**, not per sheet, after adding power symbols.
+
+**Protection network built (2026-09-29).** Between U15's collector and J4 there is a 10 kOhm
+pull-up (R79), a 100 pF capacitor (C2) and one `TPD4E05U06` channel (`U3` D1+, whose
+straight-through NC pin 10 TI sanctions carrying the signal on to the connector). Verified
+from the netlist:
+
+```
+EXT_OUT0 -> C2.1, J4.2, R79.1, U15.4, U3.1, U3.10
+EXT_IO0  -> U15.2, U2.21          the LED is now driven by GPIO.5
+U14_ST   -> R33.1, U14.9, U2.16   ST on GPIO.3, 10 kOhm pull-up to +3.3V
+```
+
+See §6.6.9 for why each of those parts is there.
+
+**Sheet 02 is done.** Pins now read: `U14_ST` on 16 (GPIO.3), `EXT_IO0` on 21 (GPIO.5),
+`EXT_IO1` on 24 (`~{RTS}`) and `EXT_IO2` on 28 (`~{DTR}`) - the last two to test points only.
+`~{CTS}` (23), `~{DSR}` (27), `~{DCD}` (1) and `~{RI}` (2) keep their no-connect flags, and no
+pin carries both a label and a no-connect flag.
+
+**Remaining:**
+
+- **`cp2102n_config.hex`** - the only schematic-adjacent task left. GPIO.5 must become an
+  output (open-drain, high drive, latch 1); GPIO.3 stays a digital input; hardware flow
+  control off. Generate it from the netlist, never from §6.1's prose.
+- **PCB:** `U3` and `C2` must sit **at J4**, not at the opto - TI's pin table says "Place as
+  close to the connector as possible" for every clamp channel.
+- **PCB:** U15/R76/R79 also want to be near J4 rather than where the schematic draws them.
+- **Cosmetic, but it prints on the silkscreen:** J4's Value reads `Conn_01x02_Socket` on a
+  header footprint, and the two new test points read `EXT_I01` (should be `EXT_IO1`) and
+  `EXT_02` (should be `EXT_IO2`).
+- **`J4` has no LCSC code** since the symbol was swapped from 1x3 to 1x2 (the old `C49257`
+  was a 1x3 part). A 1x2 2.54 mm replacement: `C492410` (`PZ254R-11-02P`).
+
+**Schematic layout note.** The capacitors were first placed in a vertical chain at x = 238.76
+and ran straight through the title block (which occupies x 177-285, y 166-198 on A4
+landscape). They were moved into the clear band above it as a horizontal row at y = 146-159.
+Check the title block's extent before placing anything in the lower-right of an A4 sheet.
+
+#### 6.6.9 Interface decision (adopted 2026-09-29): opto-buffered open collector
+
+**The CP2102N is never taken to a connector.** Each of the three host-control lines is
+buffered by an optocoupler, so the chip pin only ever sees its own LED loop inside a package.
+This supersedes both variants in §6.6.6 — the bus-buffered open drain, and the DNP `BSS138`
+branch, which is now redundant because the opto already provides the barrier.
+
+**No galvanic isolation is claimed or provided.** U15 pin 3 (emitter) returns to *board* GND
+and the 10 kOhm pull-up goes to *board* +3.3 V, so both sides of the barrier reference the
+same ground and the isolation rating does nothing. This was a deliberate
+acceptance, not an oversight: the DUT is already tied to the fixture ground through USB-C
+(J3), so there is no separate far-side ground to isolate to, and real isolation is not
+achievable in this topology. The opto earns its place as a **signal** barrier — a transient
+on the collector cannot reach the gate-side node at all — not as an isolation barrier.
+
+**Why an ESD clamp is still needed.** Without one, energy at J4 flows into the first thing on
+the net: the 10 kOhm 0402 pull-up (rated about 50 V, so it simply breaks down) and then the
++3.3 V rail, which feeds U1 and U2. The opto bounds but does not remove that path, so `U3`
+puts one `TPD4E05U06` channel on the line and shunts the pulse to GND. The part is
+0.5 pF / 5.5 V working / IEC 61000-4-2 rated and is already in the BOM as U9/U10/U11. It
+clamps **transients only**; its 5.5 V standoff means it is the wrong part if a line is ever
+left parked at 12 V.
+
+**Why 100 pF.** With the 10 kOhm pull-up it sets a deliberate edge-rate limit:
+
+$$\tau = RC = 10\,\text{k}\Omega \times 100\,\text{pF} = 1\,\mu\text{s} \qquad
+f_c = \tfrac{1}{2\pi RC} \approx 159\,\text{kHz}$$
+
+so cable-induced RF, contact bounce on plugging in and ESD remnants are all integrated away
+instead of becoming a logic edge; the slower edge also removes the high-frequency harmonics a
+cable would otherwise radiate (CISPR/EN 55032), and it gives the clamp diodes an AC path to
+GND so they have time to turn on. It is small on purpose: 100 nF against 10 kOhm would give
+1 ms, far too slow for a control line.
+
+**Layout rule.** TI's pin table footnote on every clamp channel reads *"Place as close to the
+connector as possible"*. `U3` and `C2` must therefore be placed at **J4** in the PCB layout,
+with the clamp's ground return kept short to the In1/B.Cu plane — not next to the opto, where
+they are drawn on the schematic.
+
+**Accepted limitations.** The 10 kOhm on-board pull-up fixes the idle high level at 3.3 V; a
+DUT-side pull-up to its own (e.g. 5 V) rail overrides it and the node settles about 0.5 V
+below that rail, which is still a valid high — but a 5 V input with *no* pull-up of its own
+would only see 3.3 V, below 5 V CMOS `V_IH` (about 3.5 V). `EXT_IO1`/`EXT_IO2` were reduced to
+test points (`TP9`/`TP16`) and carry no opto stage, so if they are driven at all it is as modem
+outputs through pySerial rather than from the cp210x gpiochip. `EXT_IO0` is the only line that
+uses a real GPIO, and it is now connected to `U2.21` (see §6.6.8).
 
 ## 7. Sequences and fail-safe states
 

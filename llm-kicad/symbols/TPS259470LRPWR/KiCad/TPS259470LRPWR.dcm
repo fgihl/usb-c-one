@@ -1,0 +1,9 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP TPS259470LRPWR
+D 2.7 - 23 V, 5.5 A, 28 m True Reverse Current Blocking eFuse with Input Reverse Polarity Protection
+K
+F https://www.ti.com/lit/gpn/tps25947?HQS=ti-null-null-sf-df-pf-sep-wwe&DCM=yes
+$ENDCMP
+#
+#End Doc Library
