@@ -37,6 +37,8 @@ __pycache__/
 *.pdf
 *.png
 *.jpg
+!images/*.png
+!images/*.jpg
 
 # OS files
 .DS_Store
@@ -65,3 +67,4 @@ build/
 
 snapshot/
 data_cache/
+archive/
