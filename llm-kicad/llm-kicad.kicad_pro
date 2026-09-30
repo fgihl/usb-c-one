@@ -114,18 +114,6 @@
           ""
         ],
         [
-          "starved_thermal|147495000|114750000|ced185b2-7c58-4a15-8b9b-73c0998fffc9|3db2e91e-7502-429e-8c62-15d80c2aca8e|F.Cu",
-          ""
-        ],
-        [
-          "starved_thermal|147495000|114750000|ced185b2-7c58-4a15-8b9b-73c0998fffc9|bdb433e9-418c-48eb-a6ea-9c2409f3de19|F.Cu",
-          ""
-        ],
-        [
-          "starved_thermal|154200000|97000000|ced185b2-7c58-4a15-8b9b-73c0998fffc9|d7f6b745-1d99-47c2-ab27-47438efcd40f|F.Cu",
-          ""
-        ],
-        [
           "starved_thermal|161230001|100310000|ced185b2-7c58-4a15-8b9b-73c0998fffc9|c49571aa-260a-4cd6-af0b-9715a9e34151|F.Cu",
           ""
         ],
@@ -134,11 +122,7 @@
           ""
         ],
         [
-          "starved_thermal|169489411|110160589|ced185b2-7c58-4a15-8b9b-73c0998fffc9|adfe54f4-2e3b-427c-9bc4-0f884b88c5fd|F.Cu",
-          ""
-        ],
-        [
-          "starved_thermal|171351248|104868752|ced185b2-7c58-4a15-8b9b-73c0998fffc9|79e59800-f8fe-4d35-a8d7-71fac083714b|F.Cu",
+          "starved_thermal|169499411|110190589|ced185b2-7c58-4a15-8b9b-73c0998fffc9|adfe54f4-2e3b-427c-9bc4-0f884b88c5fd|F.Cu",
           ""
         ],
         [
@@ -210,12 +194,12 @@
         "too_many_vias": "error",
         "track_angle": "error",
         "track_dangling": "warning",
-        "track_not_centered_on_via": "ignore",
+        "track_not_centered_on_via": "warning",
         "track_on_post_machined_layer": "error",
         "track_segment_length": "error",
         "track_width": "error",
         "tracks_crossing": "error",
-        "tuning_profile_track_geometries": "ignore",
+        "tuning_profile_track_geometries": "warning",
         "unconnected_items": "error",
         "unresolved_variable": "error",
         "via_dangling": "warning",
@@ -630,7 +614,7 @@
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.4,
         "tuning_profile": "",
-        "via_diameter": 0.45,
+        "via_diameter": 0.4,
         "via_drill": 0.3,
         "wire_width": 6
       },
@@ -644,7 +628,7 @@
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.136,
         "tuning_profile": "",
-        "via_diameter": 0.45,
+        "via_diameter": 0.5,
         "via_drill": 0.3
       }
     ],
@@ -837,7 +821,7 @@
         "uuid": "359235dd-5d26-44dd-816b-e50cf2415bb3"
       }
     ],
-    "used_designators": "H1-4,R6,R35,C2,C4,C28,#PWR1-112,#PWR206-207,#PWR210,J4,Y2,TP9,TP16-18,U3,#FLG1-2,IC1",
+    "used_designators": "IC1,#FLG1-2,U3,TP9,TP16-18,Y2,J4,#PWR1-112,#PWR206-207,#PWR210,C2,C4,C28,R6,R35,H1-4",
     "variants": []
   },
   "sheets": [
@@ -867,6 +851,25 @@
     "meta": {
       "version": 0
     },
-    "tuning_profiles_impedance_geometric": []
+    "tuning_profiles_impedance_geometric": [
+      {
+        "enable_time_domain_tuning": true,
+        "layer_entries": [
+          {
+            "bottom_reference_layer": "In1.Cu",
+            "delay": 0,
+            "diff_pair_gap": 150000,
+            "signal_layer": "F.Cu",
+            "top_reference_layer": "F.Cu",
+            "width": 136000
+          }
+        ],
+        "profile_name": "diff",
+        "target_impedance": 90.0,
+        "type": 1,
+        "via_overrides": [],
+        "via_prop_delay": 0
+      }
+    ]
   }
 }
