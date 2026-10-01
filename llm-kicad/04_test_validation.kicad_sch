@@ -3717,7 +3717,7 @@
 				)
 			)
 		)
-		(property "Value" "10k 0402"
+		(property "Value" "10k"
 			(at 266.7 50.8 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5512,7 +5512,7 @@
 				)
 			)
 		)
-		(property "Value" "330R 0402"
+		(property "Value" "330R"
 			(at 236.22 50.8 90)
 			(show_name no)
 			(do_not_autoplace no)

@@ -5197,7 +5197,7 @@
 				)
 			)
 		)
-		(property "Value" "5.1k 0402"
+		(property "Value" "5.1k"
 			(at 64.77 52.07 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6530,7 +6530,7 @@
 				)
 			)
 		)
-		(property "Value" "1k 0402"
+		(property "Value" "1k"
 			(at 115.57 153.67 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7237,7 +7237,7 @@
 				)
 			)
 		)
-		(property "Value" "470R 0805"
+		(property "Value" "470R"
 			(at 190.5 136.144 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7833,7 +7833,7 @@
 				)
 			)
 		)
-		(property "Value" "100k 0402"
+		(property "Value" "100k"
 			(at 180.34 135.636 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8093,7 +8093,7 @@
 				)
 			)
 		)
-		(property "Value" "10k 0402"
+		(property "Value" "10k"
 			(at 95.758 142.494 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8274,7 +8274,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "10uF 0805 25V"
+		(property "Value" "10uF 25V"
 			(at 179.832 35.052 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9893,7 +9893,7 @@
 				)
 			)
 		)
-		(property "Value" "5.1k 0402"
+		(property "Value" "5.1k"
 			(at 57.658 52.07 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10685,7 +10685,7 @@
 				)
 			)
 		)
-		(property "Value" "18k 0402"
+		(property "Value" "18k"
 			(at 95.504 159.512 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11195,7 +11195,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "100nF 0402"
+		(property "Value" "100nF"
 			(at 196.215 34.29 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11913,7 +11913,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "1uF 0402 25V"
+		(property "Value" "1uF 25V"
 			(at 129.794 34.544 0)
 			(show_name no)
 			(do_not_autoplace no)
