@@ -243,9 +243,69 @@ this table is what the pin-permutation defect was. In Xpress Configurator:
 | Charging pins | CHREN, CHR0/CHR1 unconnected |
 | Hardware flow control | **off** |
 
-Release artifact: the generated `.hex`, its SHA-256, and the serial-number
-policy. Never allow blank parts into PCBA; program and read back every unit
-before final test.
+Release artifact: the generated `.hex`, its SHA-256, its **Release Version**, and
+the serial-number policy. Never allow blank parts into PCBA; program and read
+back every unit before final test.
+
+**Fleet, Release Version and serial-number policy (as built).** Five V2.0 units
+exist, identified 1-5.
+
+Two different fields matter, and they do different jobs:
+
+| Field | Where | Value here | Role |
+|---|---|---|---|
+| **Release Version** | NVM config offsets **17-18**, little-endian (`[17]` = minor, `[18]` = major); the host reads the pair back as **`bcdDevice`** | major `0x02`, minor `0x00` -> `bcdDevice` = **`0x0200`** (2.00) | Identifies the **configuration revision**, so a host can pick a driver |
+| **Serial String** | NVM serial-number descriptor | per unit: `0001` ... `0005` | Identifies the **unit** |
+
+The shipped config image carries **Release Version 2.00** (`0x0200`). The
+CP2102N factory default in this field is `0x0100`, so unlike a field that
+happens to match the default, this one does evidence a custom image.
+
+**The host only sees this after a power-on reset.** A freshly programmed part
+keeps reporting its previous `bcdDevice` until the board is power-cycled, so
+verify the descriptor *after* re-enumeration - exactly as with the GPIO modes.
+
+Leave the manufacturer and product strings at the Silicon Labs defaults, exactly
+as unit 1 does - `Silicon Labs` / `CP2102N USB to UART Bridge Controller`. The
+manufacturer and product strings are therefore identical on every unit, so
+**the serial descriptor is what distinguishes two units** and is the field host
+tooling must key on:
+
+```sh
+# otherwise several identical CP2102N answer on VID 0x10C4 PID 0xEA60, and
+# libusb returns whichever it enumerated first
+python3 code/usb-ctr-mac.py --serial 0004 status
+```
+
+Keep the serial unique per unit and stable across re-programming. Two units
+sharing a serial cannot be told apart by the OS, by `libusb`, or in a test log.
+The bench tool `code/usb-ctr-mac.py` provides `info` (identity), `check` (the
+NVM read-back above, which now validates the Release Version and cross-checks it
+against the host-visible `bcdDevice`) and `--serial` for exactly this purpose;
+`check` and `info` have no gpiochip equivalent on Linux and remain the per-unit
+read-back gate.
+
+**Fleet read-back completed 2026-10-14 - all five units PASS.** Each unit
+reported Release Version 2.00 in both the NVM field and the live `bcdDevice`, the
+expected configuration image, the correct power-up safe state, VBUS_HIL rising in
+18-21 ms, and the DUT enumerating at J3 on connect and disappearing again on
+disconnect. Per-unit evidence is in `code/fleet-record.tsv`.
+
+**One unit was found carrying a duplicated serial**, and only the expected-serial
+check caught it:
+
+```sh
+python3 code/usb-ctr-mac.py verify --expect-serial 0004 --record code/fleet-record.tsv
+```
+
+On a board that was physically unit 4, that printed
+`FAIL - wrong unit: expected serial '0004', this board reports '0002'`.
+Nothing else would have: the CP2102N exposes no per-die identity and every unit
+carries a byte-identical configuration image, so a duplicated unit answers as
+its twin and a plain `verify` reports a clean PASS for the *wrong* board. The
+unit was reprogrammed and then passed. **Pass `--expect-serial` whenever a
+specific unit is under test** - `verify` on its own cannot say which board it is
+holding.
 
 ### 6.4 Control service
 

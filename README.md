@@ -110,4 +110,18 @@ The full list and the release acceptance checks are in [product_description.md](
 
 ## Status
 
-Hardware revision V2.0. Before release, see the open items in the schematic review report and the mandatory prototype tests in [architecture/architecture_final.md](architecture/architecture_final.md) section 10. The CP2102N must be programmed with the configuration image before use.
+Hardware revision V2.0. **Five units are built, identified 1-5**, each programmed
+with the CP2102N configuration image carrying **Release Version 2.00**
+(`0x0200`) — the host reads this back as `bcdDevice` = `0x0200`, though only
+after the board has been power-cycled. **All five units were verified
+2026-10-14**: correct configuration image and power-up safe state, VBUS rising in
+18–21 ms, and a USB mass-storage DUT enumerating at J3 on connect and dropping
+off on disconnect. Per-unit evidence is in `code/fleet-record.tsv`. The unit ID is carried in the CP2102N USB
+serial descriptor (`0001`-`0005`); the manufacturer and product strings stay at
+the Silicon Labs defaults, so the serial descriptor is what distinguishes one
+unit from another. See
+[architecture/architecture_final.md](architecture/architecture_final.md)
+section 6.3 for the Release Version and serial-number policies and the per-unit
+read-back gate.
+
+Before release, see the open items in the schematic review report and the mandatory prototype tests in [architecture/architecture_final.md](architecture/architecture_final.md) section 10. The CP2102N must be programmed with the configuration image before use.
