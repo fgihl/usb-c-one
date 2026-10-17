@@ -322,7 +322,8 @@ def find_device(pid: int | None, serial: str | None, index: int):
     sys.exit(
         f"No CP2102x found (VID 0x{VID_SILABS:04X}, PID {hint}).\n"
         "  - is the board plugged in and does it appear in\n"
-        "      ioreg -p IOUSB -w0 | grep -i cp210\n"
+        "      ioreg -p IOUSB -w0 | grep -i cp210   (macOS)\n"
+        "      lsusb -d 10c4:                        (Linux)\n"
         "  - after programming, the PID may change: pass --pid 0x????\n"
         "  - if another program holds the port, close it first."
     )
@@ -367,6 +368,18 @@ def usb_devices() -> dict:
     stable for a given physical port, so a device that was not present before
     the connect sequence shows up as a new key.
     """
+    if sys.platform.startswith("linux"):
+        base = "/sys/bus/usb/devices"
+        found = {}
+        for name in os.listdir(base):
+            if ":" in name or name.startswith("usb"):
+                continue
+            try:
+                with open(f"{base}/{name}/product") as fh:
+                    found[name] = fh.read().strip()
+            except OSError:
+                found[name] = name
+        return found
     try:
         out = subprocess.run(["ioreg", "-p", "IOUSB", "-w0"],
                              capture_output=True, text=True, timeout=10).stdout
@@ -959,6 +972,8 @@ def main(argv=None) -> int:
 
     if usb is None:
         print(f"pyusb is required but not importable ({USB_IMPORT_ERROR}).\n"
+              "  (Linux: needs libusb-1.0 too; code/usb-ctr-linux.py has no\n"
+              "  dependencies and drives the kernel gpiochip instead.)\n"
               "  Homebrew and system Python are 'externally managed' (PEP 668),\n"
               "  so a plain `pip install` will be refused. Pick one:\n"
               "      python3 -m venv ~/.venvs/usbctr\n"
