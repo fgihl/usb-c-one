@@ -99,6 +99,25 @@ The schematic sheets are `01_power_cc`, `02_usb_hub_control`, `03_dut_interface`
 python3 tools/audit_schematic.py
 ```
 
+### Control scripts
+
+Two self-contained host tools drive the same signal map; neither imports the other.
+
+| Script | Host | Path to the pins |
+|---|---|---|
+| [code/usb-ctr-mac.py](code/usb-ctr-mac.py) | macOS | CP2102N vendor requests over libusb (pyusb) |
+| [code/usb-ctr-linux.py](code/usb-ctr-linux.py) | Linux | kernel `cp210x` gpiochip (uAPI v2); usbfs for NVM reads |
+
+Both auto-detect the board generation from the CP2102N part number and, on a QFN24, the NVM Release Version:
+
+| Board | Part | Lines | Release Version |
+|---|---|---|---|
+| V2.0 | CP2102N QFN28 | 7 | `0x0200` (2.00) |
+| usb-passthrough v1.1 | CP2102N QFN24 | 4 | `0x0101` (1.01, CC_EN inverted) |
+| usb-passthrough v1.0 | CP2102N QFN24 | 4 | `0x0100` (1.00) |
+
+`--board auto|v2.0|v1.1|v1.0` overrides the detection. `info` reports the identity and the programmed image, `check` is the NVM read-back gate and `verify` the full per-unit acceptance check; both accept `--record code/fleet-record.tsv`. The legacy boards have no VBUS sense, source select or opto line, so `on`/`off` substitute a settle delay for the VBUS confirmation, `ext` is refused and `--high-current` cannot be checked.
+
 ## Known limitations
 
 - Fixed 3 A Rp: the advertisement can exceed the active source's real capacity.
@@ -123,5 +142,14 @@ unit from another. See
 [architecture/architecture_final.md](architecture/architecture_final.md)
 section 6.3 for the Release Version and serial-number policies and the per-unit
 read-back gate.
+
+The legacy **usb-passthrough v1.1** units now carry a programmed CP2102N image
+too: Release Version **1.01** (`0x0101`, which names the inverted-CC v1.1 pin
+map) plus a fleet serial in the serial descriptor (`0006`, `0010`, …). Their
+GPIO bytes stay at the factory open-drain/latched-high settings, so the existing
+board wiring is unchanged. `check` reports PASS for such a unit and records the
+read-back in `code/fleet-record.tsv` with `board = v1.1`; the host only sees the
+new serial and `bcdDevice` after a power-on reset, so replug the board after
+programming.
 
 Before release, see the open items in the schematic review report and the mandatory prototype tests in [architecture/architecture_final.md](architecture/architecture_final.md) section 10. The CP2102N must be programmed with the configuration image before use.

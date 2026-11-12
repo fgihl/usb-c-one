@@ -307,6 +307,18 @@ unit was reprogrammed and then passed. **Pass `--expect-serial` whenever a
 specific unit is under test** - `verify` on its own cannot say which board it is
 holding.
 
+**Legacy usb-passthrough boards (QFN24).** The same two fields carry a
+different meaning there. The Release Version names the pin map: `0x0100` is
+v1.0 and `0x0101` is v1.1, whose CC_EN is inverted. The serial descriptor
+identifies the unit (`0006`, `0010`, ...). The factory image reports 1.00; the
+GPIO bytes stay at the factory setting (every pin open-drain, reset latch 1),
+and Xpress Configurator must leave them alone when only the serial and Release
+Version are written. `check` validates the release, the per-pin mode/latch, the
+alternate-function bits, the AN978 Fletcher-16 checksum and the programmed
+serial. As on the V2.0 board, the serial string and `bcdDevice` only change
+after a power-on reset, so replug the board and re-run `check` before recording
+the unit.
+
 ### 6.4 Control service
 
 Use one persistent service to own the GPIO lines. It must request them with the
