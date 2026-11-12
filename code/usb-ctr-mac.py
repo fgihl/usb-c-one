@@ -9,23 +9,37 @@ as architecture_final.md section 6.1 and 6.4.
 
     pip install pyusb
 
-Only the four OUTPUT pins are ever written. GPIO.0/.1/.3 are inputs and are
-left alone, so a stray write can never fight a sense divider.
+Only the output pins of the detected board are ever written. Inputs are left
+alone, so a stray write can never fight a sense divider.
+
+Three board generations answer here, identified from the CP2102N part number
+and, on a QFN24, the NVM Release Version:
+
+    v2.0   CP2102N QFN28, seven lines, Release Version 2.00
+    v1.1   CP2102N QFN24, four lines, Release Version 1.01 (CC_EN inverted)
+    v1.0   CP2102N QFN24, four lines, Release Version 1.00
+
+The legacy boards have no VBUS sense, no source select and no opto line, so
+on/off substitute a settle delay for the VBUS confirmation, ext is refused,
+and --high-current cannot be checked. --board auto|v2.0|v1.1|v1.0 overrides the
+detection.
 
 Commands
     info      what is on the other end: part number, firmware, blank-or-programmed
-    check     read the NVM config back and compare it to the section 6.3 image
+    check     read the NVM config back and compare it to the board's image
     verify    full per-unit acceptance check: identity, image, function, DUT
-    status    current state of all seven lines, decoded
+    status    current state of every line, decoded
     safe      force the power-up safe state (CC off, data off, VBUS off, opto off)
     on        run the section 6.4 connect sequence
     off       run the section 6.4 disconnect sequence
-    ext       drive the J4 opto-isolated line
+    ext       drive the J4 opto-isolated line (V2.0 only)
     watch     poll the lines until interrupted - handy while plugging things in
 
 Examples
     ./usb-ctr-mac.py info
     ./usb-ctr-mac.py check
+    ./usb-ctr-mac.py check --record code/fleet-record.tsv
+    ./usb-ctr-mac.py --board v1.0 on
     ./usb-ctr-mac.py status
     ./usb-ctr-mac.py on
     ./usb-ctr-mac.py on --high-current      # requires J2 to be the active source
@@ -107,19 +121,30 @@ IDX_GPIO_MODE = 581       # 0 = open-drain, 1 = push-pull
 IDX_GPIO_RSTLATCH = 587   # default output state after reset
 IDX_GPIO_CONTROL = 600    # 0 = GPIO, 1 = alternate function (GPIO.0-GPIO.3)
 
-# Release Version as programmed in the shipped configuration image, per
+# Release Version as programmed in the shipped V2.0 configuration image, per
 # architecture_final.md section 6.3: major 0x02, minor 0x00 -> bcdDevice 0x0200
-# (i.e. 2.00). This is the field the host may use to decide which driver to
-# load. It identifies the *configuration revision*, not the unit - the serial
-# descriptor does that. It is only visible to the host after the device
+# (i.e. 2.00). It identifies the *configuration revision*, not the unit - the
+# serial descriptor does that. It is only visible to the host after the device
 # re-enumerates, so a freshly programmed part reports the previous value until
 # it is power-cycled. Override per run with --expect-release.
 EXPECT_RELEASE_VERSION = 0x0200
 
+# The legacy usb-passthrough boards use the Release Version to name the pin
+# map, because the part itself cannot tell v1.0 from v1.1: 1.00 is the v1.0
+# image and 1.01 the v1.1 image. A blank part reports the factory 1.00, so a
+# programmed legacy board is indistinguishable from a blank one by release
+# alone - the serial descriptor is what evidences programming.
+LEGACY_RELEASE_V10 = 0x0100
+LEGACY_RELEASE_V11 = 0x0101
+
 USB_TIMEOUT_MS = 2000
 
+# USB string descriptor for the serial number inside the config array. It is a
+# standard string descriptor: bLength, bDescriptorType = 3, then UTF-16LE.
+IDX_SERIAL_DESC = 450
+
 # --------------------------------------------------------------------------
-# Board signal map - architecture_final.md section 6.1.
+# V2.0 board signal map - architecture_final.md section 6.1.
 # Line index == GPIO number, which the Linux driver confirms (BIT(gpio)).
 # --------------------------------------------------------------------------
 
@@ -168,6 +193,166 @@ EXPECT_RSTLATCH = 0x7F & ~(1 << VBUS_EN)
 EXPECT_ALTFUNC_GPIO0_3 = 0                           # no TXT/RXT/RS485/WAKEUP
 
 # --------------------------------------------------------------------------
+# Legacy "USB passthrough" boards (usb-passthrough v1.0 / v1.1).
+#
+# The CP2102N there is the QFN24 part, so only GPIO.0-GPIO.3 exist and only
+# three of them are outputs. There is no VBUS sense, no source select and no
+# opto line, so a few commands can only report "not sensed on this board".
+#
+# v1.1 inverted the CC enable: high now cuts the CC path, where v1.0 had high
+# = connected. That is the only difference between the two revisions, and the
+# NVM Release Version names it (1.00 = v1.0, 1.01 = v1.1). The revision is also
+# printed on the silkscreen, so --board v1.1 / --board v1.0 overrides it.
+# --------------------------------------------------------------------------
+
+L_CC_EN = 0      # out, v1.1: high = CC cut     v1.0: high = CC connected
+L_USB_SEL = 1    # out, high = data path closed (TS3USB221 port 2)
+L_VBUS_EN = 2    # out, high = eFuse enabled
+L_VBUS_FLT = 3   # in,  low  = U4 reports a fault
+
+LEGACY_OUTPUT_PINS = (L_CC_EN, L_USB_SEL, L_VBUS_EN)
+
+LEGACY_PIN_NAMES = {
+    L_CC_EN: "cc_en",
+    L_USB_SEL: "usb_sel",
+    L_VBUS_EN: "vbus_en",
+    L_VBUS_FLT: "vbus_flt",
+}
+
+# The legacy image programs every pin open-drain and latched 1, exactly as the
+# factory image does. Xpress Configurator must not have changed that: a
+# push-pull CC_EN or USB_SEL would fight the transceiver.
+LEGACY_EXPECT_PUSHPULL = 0
+LEGACY_EXPECT_RSTLATCH = 0x0F
+LEGACY_EXPECT_ALTFUNC = 0
+
+
+class BoardProfile:
+    """Pin map, polarity and sense lines of one board generation."""
+
+    def __init__(self, key, label, partnum, pin_names, outputs, safe_state,
+                 cc_pin, data_pin, vbus_pin, fault_pin,
+                 cc_connected_level, data_connected_level, vbus_on_level,
+                 pushpull_pins=(), sense_pin=None, source_pin=None,
+                 ext_pin=None):
+        self.key = key
+        self.label = label
+        self.partnum = partnum
+        self.pin_names = pin_names
+        self.outputs = outputs
+        self.safe_state = safe_state
+        self.cc_pin = cc_pin
+        self.data_pin = data_pin
+        self.vbus_pin = vbus_pin
+        self.fault_pin = fault_pin
+        self.sense_pin = sense_pin
+        self.source_pin = source_pin
+        self.ext_pin = ext_pin
+        self.cc_connected_level = cc_connected_level
+        self.cc_cut_level = 1 - cc_connected_level
+        self.data_connected_level = data_connected_level
+        self.data_open_level = 1 - data_connected_level
+        self.vbus_on_level = vbus_on_level
+        self.vbus_off_level = 1 - vbus_on_level
+        self.pushpull_pins = tuple(pushpull_pins)
+        self.gpio_count = len(pin_names)
+        # Only the QFN28 packs GPIO.4-6 into the low bits of the NVM bytes.
+        self.qfn28 = partnum == PARTNUM_CP2102N_QFN28
+
+    def _bit(self, snap: dict[str, int], pin: int) -> int:
+        return snap[self.pin_names[pin]]
+
+    def cc_connected(self, snap) -> bool:
+        return self._bit(snap, self.cc_pin) == self.cc_connected_level
+
+    def data_connected(self, snap) -> bool:
+        return self._bit(snap, self.data_pin) == self.data_connected_level
+
+    def vbus_on(self, snap) -> bool:
+        return self._bit(snap, self.vbus_pin) == self.vbus_on_level
+
+    def fault(self, snap) -> bool:
+        return self._bit(snap, self.fault_pin) == 0
+
+    def vbus_present(self, snap):
+        """True/False for the VBUS sense line, or None when it does not exist."""
+        if self.sense_pin is None:
+            return None
+        return self._bit(snap, self.sense_pin) == 1
+
+    def source(self, snap):
+        """'vbus_pwr' / 'vbus_up', or None when there is no source select."""
+        if self.source_pin is None:
+            return None
+        return "vbus_up" if self._bit(snap, self.source_pin) else "vbus_pwr"
+
+    def ext_asserted(self, snap):
+        """True/False for the J4 opto line, or None when it does not exist."""
+        if self.ext_pin is None:
+            return None
+        return self._bit(snap, self.ext_pin) == 0
+
+
+BOARD_V2 = BoardProfile(
+    key="v2.0",
+    label="usb-c-one V2.0 (CP2102N QFN28, 7 lines)",
+    partnum=PARTNUM_CP2102N_QFN28,
+    pin_names=PIN_NAMES,
+    outputs=OUTPUT_PINS,
+    safe_state=SAFE_STATE,
+    cc_pin=CC_EN_N, data_pin=DATA_EN_N, vbus_pin=VBUS_EN,
+    fault_pin=HIL_FLT_N, sense_pin=VBUS_SNS, source_pin=U14_ST, ext_pin=EXT_IO0,
+    cc_connected_level=0, data_connected_level=0, vbus_on_level=1,
+    pushpull_pins=(VBUS_EN,),
+)
+
+BOARD_V11 = BoardProfile(
+    key="v1.1",
+    label="usb-passthrough v1.1 (CP2102N QFN24, 4 lines, CC_EN inverted)",
+    partnum=PARTNUM_CP2102N_QFN24,
+    pin_names=LEGACY_PIN_NAMES,
+    outputs=LEGACY_OUTPUT_PINS,
+    # Disconnected: CC cut, data floating, VBUS off.
+    safe_state={L_CC_EN: 1, L_USB_SEL: 0, L_VBUS_EN: 0},
+    cc_pin=L_CC_EN, data_pin=L_USB_SEL, vbus_pin=L_VBUS_EN,
+    fault_pin=L_VBUS_FLT,
+    cc_connected_level=0, data_connected_level=1, vbus_on_level=1,
+)
+
+BOARD_V10 = BoardProfile(
+    key="v1.0",
+    label="usb-passthrough v1.0 (CP2102N QFN24, 4 lines)",
+    partnum=PARTNUM_CP2102N_QFN24,
+    pin_names=LEGACY_PIN_NAMES,
+    outputs=LEGACY_OUTPUT_PINS,
+    safe_state={L_CC_EN: 0, L_USB_SEL: 0, L_VBUS_EN: 0},
+    cc_pin=L_CC_EN, data_pin=L_USB_SEL, vbus_pin=L_VBUS_EN,
+    fault_pin=L_VBUS_FLT,
+    cc_connected_level=1, data_connected_level=1, vbus_on_level=1,
+)
+
+PROFILES = {profile.key: profile for profile in (BOARD_V2, BOARD_V11, BOARD_V10)}
+LEGACY_DEFAULT = BOARD_V11
+
+# --expect-release overrides the profile default for this run.
+EXPECT_RELEASE_OVERRIDE = None
+
+
+def expected_release(board: BoardProfile) -> int:
+    if EXPECT_RELEASE_OVERRIDE is not None:
+        return EXPECT_RELEASE_OVERRIDE
+    if board is BOARD_V2:
+        return EXPECT_RELEASE_VERSION
+    return LEGACY_RELEASE_V10 if board is BOARD_V10 else LEGACY_RELEASE_V11
+
+
+def expected_image(board: BoardProfile):
+    """(push-pull mask, reset latch, alt-function mask) for `board`."""
+    if board is BOARD_V2:
+        return EXPECT_PUSHPULL, EXPECT_RSTLATCH, EXPECT_ALTFUNC_GPIO0_3
+    return LEGACY_EXPECT_PUSHPULL, LEGACY_EXPECT_RSTLATCH, LEGACY_EXPECT_ALTFUNC
+
+# --------------------------------------------------------------------------
 # Device access
 # --------------------------------------------------------------------------
 
@@ -177,6 +362,7 @@ class Cp210x:
         self.dev = dev
         self.interface = interface
         self.verbose = verbose
+        self.board: BoardProfile | None = None   # set by detect_board()
 
     # -- low level ---------------------------------------------------------
 
@@ -206,10 +392,11 @@ class Cp210x:
 
     def write_outputs(self, values: dict[int, int]) -> None:
         """Write only the given output pins; every other bit is left alone."""
+        outputs = self.board.outputs if self.board else OUTPUT_PINS
         mask = 0
         state = 0
         for pin, value in values.items():
-            if pin not in OUTPUT_PINS:
+            if pin not in outputs:
                 raise ValueError(f"GPIO.{pin} is not an output on this board")
             mask |= 1 << pin
             if value:
@@ -242,11 +429,19 @@ class Cp210x:
             VAL_READ_2NCONFIG, 0, CFG_SIZE, timeout=USB_TIMEOUT_MS)
         return bytes(data)
 
+    def host_serial(self) -> str:
+        """The serial string the host sees in the USB descriptor."""
+        try:
+            return usb.util.get_string(self.dev, self.dev.iSerialNumber) or ""
+        except Exception:
+            return ""
+
     # -- decoded state -----------------------------------------------------
 
     def snapshot(self) -> dict[str, int]:
         latch = self.read_latch()
-        return {name: (latch >> pin) & 1 for pin, name in PIN_NAMES.items()}
+        names = self.board.pin_names if self.board else PIN_NAMES
+        return {name: (latch >> pin) & 1 for pin, name in names.items()}
 
 
 def bcd_u16(value: int) -> str:
@@ -256,7 +451,53 @@ def bcd_u16(value: int) -> str:
     return f"{hi}.{lo:02d}"
 
 
-def decode_config(buf: bytes) -> dict:
+def decode_serial(buf: bytes) -> str:
+    """The serial-number string descriptor stored in the config array.
+
+    The device only re-presents the string after a power-on reset, so this is
+    the programmed truth even while the host descriptor still shows the factory
+    value.
+    """
+    if len(buf) < IDX_SERIAL_DESC + 2:
+        return ""
+    length = buf[IDX_SERIAL_DESC]
+    desc_type = buf[IDX_SERIAL_DESC + 1]
+    if desc_type != 0x03 or length < 2 or length % 2 or length > 64:
+        return ""
+    raw = buf[IDX_SERIAL_DESC + 2:IDX_SERIAL_DESC + length]
+    try:
+        return raw.decode("utf-16-le")
+    except UnicodeDecodeError:
+        return ""
+
+
+def fletcher16(data: bytes) -> int:
+    """AN978 Fletcher-16 (mod 255, init 0xFF), as the CP2102N stores it."""
+    s1 = s2 = 0xFF
+    for i in range(0, len(data), 20):        # the spec folds every 20 bytes
+        for value in data[i:i + 20]:
+            s1 += value
+            s2 += s1
+        s1 = (s1 & 0xFF) + (s1 >> 8)
+        s2 = (s2 & 0xFF) + (s2 >> 8)
+    s1 = (s1 & 0xFF) + (s1 >> 8)
+    s2 = (s2 & 0xFF) + (s2 >> 8)
+    return (s2 << 8) | s1
+
+
+def config_checksum_ok(buf: bytes) -> bool:
+    """True when the last two bytes hold the Fletcher-16 of the rest.
+
+    The CP2102N stores it high byte first; Xpress Configurator writes it that
+    way, so the byte order is part of the check.
+    """
+    if len(buf) < CFG_SIZE:
+        return False
+    stored = int.from_bytes(buf[CFG_SIZE - 2:CFG_SIZE], "big")
+    return fletcher16(buf[:CFG_SIZE - 2]) == stored
+
+
+def decode_config(buf: bytes, qfn28: bool = True) -> dict:
     """
     Split the 678-byte CP2102N configuration into the fields we care about.
 
@@ -268,7 +509,9 @@ def decode_config(buf: bytes) -> dict:
 
     The 7-bit rearrangement for the QFN28 package (GPIO.0-3 in bits 3-6,
     GPIO.4-6 in bits 0-2) follows the Linux cp210x driver, which notes the
-    published document gets those bits wrong.
+    published document gets those bits wrong. A QFN24 has only GPIO.0-3, so
+    `qfn28=False` must be passed for it: decoding a four-line part with the
+    seven-bit map invents GPIO.4-6.
     """
     if len(buf) < CFG_SIZE:
         raise ValueError(f"short config read: {len(buf)} of {CFG_SIZE} bytes")
@@ -280,13 +523,18 @@ def decode_config(buf: bytes) -> dict:
     rstlatch = buf[IDX_GPIO_RSTLATCH]
     control = buf[IDX_GPIO_CONTROL]
 
-    pushpull = ((mode >> 3) & 0x0F) | ((mode & 0x07) << 4)
-    latch = ((rstlatch >> 3) & 0x0F) | ((rstlatch & 0x07) << 4)
+    pushpull = (mode >> 3) & 0x0F
+    latch = (rstlatch >> 3) & 0x0F
+    if qfn28:
+        pushpull |= (mode & 0x07) << 4
+        latch |= (rstlatch & 0x07) << 4
     altfunc = (control >> 2) & 0x0F       # applies to GPIO.0-GPIO.3 only
 
     return {
         "version": version,
         "release_version": release,
+        "serial": decode_serial(buf),
+        "checksum_ok": config_checksum_ok(buf),
         "raw_mode": mode,
         "raw_rstlatch": rstlatch,
         "raw_control": control,
@@ -329,6 +577,42 @@ def find_device(pid: int | None, serial: str | None, index: int):
     )
 
 
+def detect_board(dev: Cp210x, override: str | None = None) -> BoardProfile:
+    """Identify the attached board and install its profile on `dev`.
+
+    The part number is the hardware fact and decides the pin map: the QFN28
+    is the V2.0 board, the QFN24 is a legacy board. Driving a seven-line map
+    onto a four-line part would aim writes at pins that do not exist, and the
+    reverse would leave the V2.0 outputs undriven, so this is never guessed
+    from the image alone.
+
+    On a QFN24 the NVM Release Version names the revision: 1.01 is v1.1 and
+    1.00 is v1.0. Both report the same part number, so --board is available
+    when the silkscreen is the better authority.
+    """
+    if override and override != "auto":
+        profile = PROFILES[override]
+    else:
+        partnum = dev.part_number()
+        release = decode_config(
+            dev.read_config(),
+            partnum == PARTNUM_CP2102N_QFN28)["release_version"]
+
+        if partnum == PARTNUM_CP2102N_QFN28:
+            profile = BOARD_V2
+        elif partnum == PARTNUM_CP2102N_QFN24:
+            profile = BOARD_V10 if release == LEGACY_RELEASE_V10 else BOARD_V11
+        else:
+            # Unknown part number: trust the image contents instead.
+            profile = (BOARD_V2 if release == EXPECT_RELEASE_VERSION
+                       else LEGACY_DEFAULT)
+
+    dev.board = profile
+    if dev.verbose:
+        print(f"  [usb] board {profile.key}: {profile.label}", file=sys.stderr)
+    return profile
+
+
 def open_device(args) -> Cp210x:
     dev = find_device(args.pid, args.serial, args.index)
 
@@ -346,7 +630,9 @@ def open_device(args) -> Cp210x:
         except Exception:
             pass
 
-    return Cp210x(dev, interface, args.verbose)
+    ctrl = Cp210x(dev, interface, args.verbose)
+    detect_board(ctrl, getattr(args, "board", None))
+    return ctrl
 
 
 def summarise(dev) -> str:
@@ -396,57 +682,91 @@ def usb_devices() -> dict:
 
 def cmd_info(args) -> int:
     dev = open_device(args)
+    board = dev.board
     print(f"device      : {summarise(dev.dev)}")
     try:
         print(f"VID:PID     : 0x{dev.dev.idVendor:04X}:0x{dev.dev.idProduct:04X}")
     except Exception:
         pass
+    print(f"board       : {board.label}")
 
     partnum = dev.part_number()
     print(f"part number : 0x{partnum:02X}  ({PARTNUM_NAMES.get(partnum, 'unknown')})")
-    if partnum != PARTNUM_CP2102N_QFN28:
-        print(f"  !! expected 0x{PARTNUM_CP2102N_QFN28:02X} "
-              f"(CP2102N QFN28) - the rest of this tool assumes 7 GPIOs")
+    if partnum != board.partnum:
+        print(f"  !! this profile expects 0x{board.partnum:02X} - pass --board")
+    if partnum == PARTNUM_CP2102N_QFN24:
+        print("  note: v1.0/v1.1 differ only in CC_EN polarity and the part "
+              "cannot tell them\n        apart; pass --board v1.1 or --board "
+              "v1.0 if the silkscreen disagrees")
 
     fw = dev.firmware_version()
     if fw:
         print(f"firmware    : {fw}")
 
-    cfg = decode_config(dev.read_config())
+    cfg = decode_config(dev.read_config(), board.qfn28)
     print(f"config ver  : 0x{cfg['version']:02X}")
 
     # Release Version: what the host sees as bcdDevice, read back from the NVM.
     release = cfg["release_version"]
+    want = expected_release(board)
     print(f"release ver : 0x{release:04X}  (v{bcd_u16(release)})"
-          + ("" if release == EXPECT_RELEASE_VERSION
-             else f"   !! expected 0x{EXPECT_RELEASE_VERSION:04X} "
-                  f"(v{bcd_u16(EXPECT_RELEASE_VERSION)})"))
+          + ("" if release == want
+             else f"   !! expected 0x{want:04X} (v{bcd_u16(want)})"))
 
+    # The serial descriptor is the per-unit identity. The NVM copy is what was
+    # programmed; the host copy only changes after a power-on reset.
+    nvm_serial = cfg["serial"]
+    host_serial = dev.host_serial()
+    if nvm_serial:
+        print(f"NVM serial  : {nvm_serial!r}")
+    print(f"host serial : {host_serial!r}"
+          + ("   !! stale - power-cycle the board"
+             if nvm_serial and host_serial != nvm_serial else ""))
+
+    pushpull, rstlatch, altfunc = expected_image(board)
     programmed = (
-        cfg["pushpull"] == EXPECT_PUSHPULL
-        and cfg["rstlatch"] == EXPECT_RSTLATCH
-        and cfg["altfunc"] == EXPECT_ALTFUNC_GPIO0_3
-        and release == EXPECT_RELEASE_VERSION
+        cfg["pushpull"] == pushpull
+        and cfg["rstlatch"] == rstlatch
+        and cfg["altfunc"] == altfunc
+        and release == want
     )
-    print(f"image       : {'matches section 6.3' if programmed else 'DOES NOT match section 6.3 - see `check`'}")
+    if not programmed:
+        image = "DOES NOT match the expected image - see `check`"
+    elif board is BOARD_V2:
+        image = "matches section 6.3"
+    elif nvm_serial:
+        image = f"programmed {board.key} image, serial {nvm_serial}"
+    else:
+        image = "factory image (unprogrammed) - program a serial before release"
+    print(f"image       : {image}")
 
     snap = dev.snapshot()
     print("\nlive lines  (1 = high)")
-    for pin in range(GPIO_COUNT):
-        direction = "out" if pin in OUTPUT_PINS else "in "
-        print(f"  GPIO.{pin}  {direction}  {PIN_NAMES[pin]:13s} = {snap[PIN_NAMES[pin]]}")
+    for pin in range(board.gpio_count):
+        direction = "out" if pin in board.outputs else "in "
+        print(f"  GPIO.{pin}  {direction}  "
+              f"{board.pin_names[pin]:13s} = {snap[board.pin_names[pin]]}")
     return 0
 
 
 def cmd_check(args) -> int:
-    """Read the NVM back and compare it to the section 6.3 configuration image."""
+    """Read the NVM back and compare it to the image this board should carry."""
     dev = open_device(args)
-    cfg = decode_config(dev.read_config())
+    board = dev.board
+    cfg = decode_config(dev.read_config(), board.qfn28)
+    want_release = expected_release(board)
+    want_pp, want_latch, want_alt = expected_image(board)
+    width = board.gpio_count
+    failed = []
 
-    print("CP2102N configuration read-back vs architecture_final.md section 6.3")
+    description = ("architecture_final.md section 6.3" if board is BOARD_V2
+                   else f"the {board.key} legacy image")
+    print(f"CP2102N configuration read-back vs {description}")
     print(f"  raw bytes: mode[0x{IDX_GPIO_MODE:X}]=0x{cfg['raw_mode']:02X}  "
           f"rstlatch[0x{IDX_GPIO_RSTLATCH:X}]=0x{cfg['raw_rstlatch']:02X}  "
           f"control[0x{IDX_GPIO_CONTROL:X}]=0x{cfg['raw_control']:02X}")
+    if cfg["version"] != 0x01:
+        failed.append("config version")
     print(f"  config version = 0x{cfg['version']:02X}"
           + ("" if cfg["version"] == 0x01 else "   <-- unsupported version"))
 
@@ -459,18 +779,19 @@ def cmd_check(args) -> int:
     except Exception:
         bcd_device = None
 
-    release_ok = release == EXPECT_RELEASE_VERSION
-    ok = release_ok
+    release_ok = release == want_release
+    if not release_ok:
+        failed.append("release version")
     print(f"\n  Release Version NVM[0x{IDX_RELEASE_VERSION:X}:+2] LE = "
           f"0x{release:04X}  (major 0x{major:02X}, minor 0x{minor:02X})")
-    print(f"  expected (section 6.3)                  = "
-          f"0x{EXPECT_RELEASE_VERSION:04X}  ->  "
-          f"major 0x{(EXPECT_RELEASE_VERSION >> 8) & 0xFF:02X}, "
-          f"minor 0x{EXPECT_RELEASE_VERSION & 0xFF:02X}"
+    print(f"  expected ({description}) = 0x{want_release:04X}  ->  "
+          f"major 0x{(want_release >> 8) & 0xFF:02X}, "
+          f"minor 0x{want_release & 0xFF:02X}"
           + ("" if release_ok else "   <-- MISMATCH"))
     if bcd_device is not None:
         same = bcd_device == release
-        ok &= same
+        if not same:
+            failed.append("bcdDevice")
         print(f"  host-visible bcdDevice                  = "
               f"0x{bcd_device:04X}  ->  v{bcd_u16(bcd_device)}"
               + ("" if same else "   <-- NVM and descriptor disagree"))
@@ -480,73 +801,125 @@ def cmd_check(args) -> int:
             print("        old value. Power-cycle the board (replug it) and retry.")
     else:
         print("  host-visible bcdDevice                  = (unreadable)")
+
     print("\n  per-pin expected vs actual")
     print("  GPIO  want            got             "
           "pushpull(reset latch)")
-    for pin in range(GPIO_COUNT):
-        want_pp = "push-pull " if (EXPECT_PUSHPULL >> pin) & 1 else "open-drain"
-        want_latch = (EXPECT_RSTLATCH >> pin) & 1
-        got_pp = "push-pull " if (cfg["pushpull"] >> pin) & 1 else "open-drain"
-        got_latch = (cfg["rstlatch"] >> pin) & 1
+    for pin in range(board.gpio_count):
+        want_mode = "push-pull " if (want_pp >> pin) & 1 else "open-drain"
+        want_state = (want_latch >> pin) & 1
+        got_mode = "push-pull " if (cfg["pushpull"] >> pin) & 1 else "open-drain"
+        got_state = (cfg["rstlatch"] >> pin) & 1
 
-        match = (want_pp == got_pp) and (want_latch == got_latch)
-        ok &= match
+        match = (want_mode == got_mode) and (want_state == got_state)
+        if not match:
+            failed.append(f"GPIO.{pin} mode/latch")
         flag = "" if match else "   <-- MISMATCH"
-        direction = "out" if pin in OUTPUT_PINS else "in "
-        print(f"  GPIO.{pin} {direction} {want_pp} latch={want_latch}   "
-              f"{got_pp} latch={got_latch}{flag}")
+        direction = "out" if pin in board.outputs else "in "
+        print(f"  GPIO.{pin} {direction} {want_mode} latch={want_state}   "
+              f"{got_mode} latch={got_state}{flag}")
 
-    alt_ok = cfg["altfunc"] == EXPECT_ALTFUNC_GPIO0_3
-    ok &= alt_ok
+    alt_ok = cfg["altfunc"] == want_alt
+    if not alt_ok:
+        failed.append("alternate functions")
     print(f"\n  alternate functions GPIO.0-GPIO.3 = 0b{cfg['altfunc']:04b} "
-          f"(want 0b{EXPECT_ALTFUNC_GPIO0_3:04b})"
+          f"(want 0b{want_alt:04b})"
           + ("" if alt_ok else "   <-- MISMATCH: TXT/RXT/RS485/WAKEUP still routed"))
 
-    print("\n  note: GPIO.5 HIGH DRIVE is not carried in these three bytes and "
-          "cannot\n        be verified here - confirm it in Xpress Configurator "
-          "by hand.")
+    if not cfg["checksum_ok"]:
+        failed.append("checksum")
+        print("\n  AN978 Fletcher-16 checksum: MISMATCH - the NVM image is not "
+              "coherent")
+    else:
+        print("\n  AN978 Fletcher-16 checksum: ok")
 
+    # Serial descriptor: the NVM copy is the programmed truth; the host copy is
+    # only refreshed by a power-on reset.
+    nvm_serial = cfg["serial"]
+    host_serial = dev.host_serial()
+    stale = bool(nvm_serial) and host_serial != nvm_serial
+    print(f"\n  serial (NVM)  = {nvm_serial!r}" if nvm_serial
+          else "\n  serial (NVM)  = (factory, not programmed)")
+    print(f"  serial (host) = {host_serial!r}"
+          + ("   <-- stale: power-cycle the board" if stale else ""))
+    if not nvm_serial:
+        failed.append("serial not programmed")
+
+    if board is BOARD_V2:
+        print("\n  note: GPIO.5 HIGH DRIVE is not carried in these three bytes and "
+              "cannot\n        be verified here - confirm it in Xpress Configurator "
+              "by hand.")
+
+    ok = not failed
     print()
     if ok:
-        print("RESULT: PASS - the NVM image matches section 6.3.")
-        return 0
+        print(f"RESULT: PASS - the NVM image matches {description}.")
+    else:
+        print(f"RESULT: FAIL - {len(failed)} check(s): " + "; ".join(failed))
+        print("        A blank CP2102N still enumerates and still answers these")
+        print("        requests, so this check is the only way to tell.")
 
-    print("RESULT: FAIL - this is either a blank part or a wrong image.")
-    print("        A blank CP2102N still enumerates and still answers these")
-    print("        requests, so this check is the only way to tell.")
-    return 1
+    if args.record:
+        note = "NVM read-back (check)"
+        if stale:
+            note += "; host serial descriptor stale, power-cycle pending"
+        if nvm_serial:
+            repeat = fleet_already_seen(args.record, nvm_serial)
+            if repeat:
+                note += f"; serial also seen at {repeat['utc']}"
+        fleet_append(args.record, {
+            "utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "serial": nvm_serial or host_serial,
+            "result": "PASS" if ok else "FAIL",
+            "release": f"0x{release:04X}",
+            "bcd_device": f"0x{bcd_device:04X}" if bcd_device is not None else "",
+            "config": f"0x{cfg['version']:02X}",
+            "pushpull": f"0b{cfg['pushpull']:0{width}b}",
+            "rstlatch": f"0b{cfg['rstlatch']:0{width}b}",
+            "altfunc": f"0b{cfg['altfunc']:04b}",
+            "vbus_up_ms": "",
+            "dut": "",
+            "failed": "; ".join(failed),
+            "notes": note,
+            "board": board.key,
+        })
+        print(f"recorded to {args.record}")
+    return 0 if ok else 1
 
 
 def cmd_status(args) -> int:
     dev = open_device(args)
+    board = dev.board
     snap = dev.snapshot()
 
-    vbus = snap["vbus_hil_sns"]
-    fault = not snap["hil_flt_n"]          # active low
-    source = "vbus_pwr (J2)" if not snap["u14_st"] else "vbus_up (J1)"
-
-    print("HIL USB-C Control - line state")
-    print(f"  VSYS source      : {source}")
-    print(f"  VBUS at J3       : {'present' if vbus else 'absent'}"
-          f"   (sns={vbus})")
-    print(f"  eFuse fault      : {'FAULT' if fault else 'ok'}   (flt_n={snap['hil_flt_n']})")
+    print(f"{board.label} - line state")
+    if board is BOARD_V2:
+        print(f"  VSYS source      : "
+              f"{'vbus_pwr (J2)' if board.source(snap) == 'vbus_pwr' else 'vbus_up (J1)'}")
+        print(f"  VBUS at J3       : "
+              f"{'present' if board.vbus_present(snap) else 'absent'}")
+    print(f"  eFuse fault      : {'FAULT' if board.fault(snap) else 'ok'}")
     print()
-    print(f"  CC  / Rp         : {'enabled' if not snap['cc_en_n'] else 'disabled'}"
-          f"   (cc_en_n={snap['cc_en_n']})")
-    print(f"  VBUS enable      : {'on' if snap['vbus_en'] else 'off'}"
-          f"   (vbus_en={snap['vbus_en']})")
-    print(f"  data path        : {'closed' if not snap['data_en_n'] else 'open'}"
-          f"   (data_en_n={snap['data_en_n']})")
-    print(f"  J4 opto line     : {'asserted' if not snap['ext_io0'] else 'released'}"
-          f"   (ext_io0={snap['ext_io0']})")
+    print(f"  CC  / Rp         : "
+          f"{'connected' if board.cc_connected(snap) else 'cut'}")
+    print(f"  VBUS enable      : {'on' if board.vbus_on(snap) else 'off'}")
+    print(f"  data path        : "
+          f"{'closed' if board.data_connected(snap) else 'open'}")
+    if board.ext_pin is not None:
+        print(f"  J4 opto line     : "
+              f"{'asserted' if board.ext_asserted(snap) else 'released'}")
+    if board is not BOARD_V2:
+        print("\n  note: this board has no VBUS sense, source select or opto line.")
     return 0
 
 
 def cmd_safe(args) -> int:
     dev = open_device(args)
-    # Only touch the outputs; HIL_FLT_N/VBUS_SNS/U14_ST are inputs.
-    dev.write_outputs(SAFE_STATE)
-    print("safe state applied: CC off, data off, VBUS off, opto released")
+    board = dev.board
+    # Only touch the outputs; inputs are left alone.
+    dev.write_outputs(board.safe_state)
+    print(f"safe state applied on {board.key}: CC cut, data open, VBUS off"
+          + (", opto released" if board.ext_pin is not None else ""))
     return 0
 
 
@@ -562,21 +935,28 @@ def _wait_until(dev, predicate, timeout: float, interval: float = 0.002) -> bool
 def cmd_off(args) -> int:
     """Section 6.4 disconnect: data off, 20 ms, CC off, 20 ms, VBUS off, wait."""
     dev = open_device(args)
+    board = dev.board
     t0 = time.monotonic()
 
-    dev.set_pin(DATA_EN_N, 1)          # open the data path first
+    dev.set_pin(board.data_pin, board.data_open_level)     # open the data path
     time.sleep(0.020)
-    dev.set_pin(CC_EN_N, 1)            # then drop Rp
+    dev.set_pin(board.cc_pin, board.cc_cut_level)         # then drop Rp
     time.sleep(0.020)
-    dev.set_pin(VBUS_EN, 0)            # then remove VBUS
+    dev.set_pin(board.vbus_pin, board.vbus_off_level)     # then remove VBUS
 
-    if not _wait_until(dev, lambda s: not s["vbus_hil_sns"], timeout=0.150):
-        print("error: VBUS did not discharge within 150 ms", file=sys.stderr)
-        return 1
+    if board.sense_pin is None:
+        time.sleep(0.020)                                 # no line to confirm
+        detail = "VBUS switched off (not sensed on this board)"
+    else:
+        if not _wait_until(dev, lambda s: not board.vbus_present(s),
+                           timeout=0.150):
+            print("error: VBUS did not discharge within 150 ms", file=sys.stderr)
+            return 1
+        detail = "VBUS collapsed"
 
-    dev.set_pin(EXT_IO0, 1)            # leave the opto line inert
-    print(f"DUT disconnected ({(time.monotonic() - t0) * 1000:.0f} ms); "
-          "VBUS collapsed")
+    if board.ext_pin is not None:
+        dev.set_pin(board.ext_pin, 1)                     # leave the opto inert
+    print(f"DUT disconnected ({(time.monotonic() - t0) * 1000:.0f} ms); {detail}")
     return 0
 
 
@@ -586,7 +966,7 @@ def cmd_off(args) -> int:
 
 FLEET_FIELDS = ("utc", "serial", "result", "release", "bcd_device", "config",
                 "pushpull", "rstlatch", "altfunc", "vbus_up_ms", "dut",
-                "failed", "notes")
+                "failed", "notes", "board")
 
 
 def fleet_load(path: str) -> list:
@@ -606,7 +986,7 @@ def fleet_append(path: str, record: dict) -> None:
     fresh = not os.path.exists(path)
     with open(path, "a", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=FLEET_FIELDS, delimiter="\t",
-                                extrasaction="ignore")
+                                extrasaction="ignore", lineterminator="\n")
         if fresh:
             writer.writeheader()
         writer.writerow(record)
@@ -635,6 +1015,7 @@ def cmd_verify(args) -> int:
     and the record §6.3 asks for. Leaves the board in the safe state.
     """
     dev = open_device(args)
+    board = dev.board
     checks = []
 
     def row(label, value, ok=None, indent=3):
@@ -645,43 +1026,58 @@ def cmd_verify(args) -> int:
 
     # -- 1 identity --------------------------------------------------------
     print("1. identity")
-    try:
-        serial = usb.util.get_string(dev.dev, dev.dev.iSerialNumber) or ""
-    except Exception:
-        serial = ""
-    row("serial", repr(serial) if serial else "(none)",
-        bool(serial))
+    row("board", board.label)
+    cfg = decode_config(dev.read_config(), board.qfn28)
+    nvm_serial = cfg["serial"]
+    host_serial = dev.host_serial()
+    row("serial (host)", repr(host_serial) if host_serial else "(none)",
+        bool(host_serial))
+    if nvm_serial:
+        row("serial (NVM)", repr(nvm_serial), nvm_serial == host_serial)
+        if host_serial and host_serial != nvm_serial:
+            print("      ! host descriptor is stale - power-cycle the board; "
+                  "the NVM copy is the programmed unit ID")
     row("VID:PID", f"0x{dev.dev.idVendor:04X}:0x{dev.dev.idProduct:04X}")
     partnum = dev.part_number()
     row("part number", f"0x{partnum:02X} ({PARTNUM_NAMES.get(partnum, '?')})",
-        partnum == PARTNUM_CP2102N_QFN28)
+        partnum == board.partnum)
 
-    # The five units are physically interchangeable and the host cannot tell
-    # them apart - the CP2102N has no per-die ID, and every unit's config image
-    # is byte-identical, so the serial descriptor is the only handle. If the
+    # The units are physically interchangeable and the host cannot tell them
+    # apart - the CP2102N has no per-die ID, and every unit's config image is
+    # byte-identical, so the serial descriptor is the only handle. If the
     # operator says which board they connected, hold the board to it and stop
     # here rather than powering a DUT on a board they did not mean to test.
     expect = getattr(args, "expect_serial", None)
-    if expect is not None and serial != expect:
+    if expect is not None and host_serial != expect:
         print()
         print(f"RESULT: FAIL - wrong unit: expected serial {expect!r}, this "
-              f"board reports {serial!r}.")
-        print(f"        Check the number printed on the board. If it reads "
-              f"{expect} then it")
-        print(f"        has been programmed with the wrong serial, and so has "
-              f"whichever unit")
-        print(f"        does report {serial!r} - two units sharing a serial "
-              f"cannot be addressed")
-        print(f"        individually by the host.")
+              f"board reports {host_serial!r}.")
+        if nvm_serial == expect:
+            print(f"        The NVM carries {expect!r}, so the write landed; the "
+                  f"host descriptor")
+            print("        is still the factory value. Power-cycle the board and "
+                  "retry.")
+        else:
+            print(f"        Check the number printed on the board. If it reads "
+                  f"{expect} then it")
+            print(f"        has been programmed with the wrong serial, and so has "
+                  f"whichever unit")
+            print(f"        does report {host_serial!r} - two units sharing a "
+                  f"serial cannot be")
+            print(f"        addressed individually by the host.")
         return 1
 
     # -- 2 configuration image --------------------------------------------
-    print("\n2. configuration image vs section 6.3")
-    cfg = decode_config(dev.read_config())
+    want_release = expected_release(board)
+    want_pp, want_latch, want_alt = expected_image(board)
+    width = board.gpio_count
+    description = ("section 6.3" if board is BOARD_V2
+                   else f"the {board.key} legacy image")
+    print(f"\n2. configuration image vs {description}")
     release = cfg["release_version"]
     row("Release Version (NVM)",
         f"0x{release:04X}  major 0x{release >> 8:02X} minor 0x{release & 0xFF:02X}",
-        release == EXPECT_RELEASE_VERSION)
+        release == want_release)
     try:
         bcd = dev.dev.bcdDevice
     except Exception:
@@ -692,42 +1088,64 @@ def cmd_verify(args) -> int:
     if bcd is not None and bcd != release:
         print("      ! descriptor is stale - power-cycle the board and re-run")
     row("config version", f"0x{cfg['version']:02X}", cfg["version"] == 0x01)
-    row("GPIO push-pull mask", f"0b{cfg['pushpull']:07b}",
-        cfg["pushpull"] == EXPECT_PUSHPULL)
-    row("GPIO reset latch", f"0b{cfg['rstlatch']:07b}",
-        cfg["rstlatch"] == EXPECT_RSTLATCH)
+    row("GPIO push-pull mask", f"0b{cfg['pushpull']:0{width}b}",
+        cfg["pushpull"] == want_pp)
+    row("GPIO reset latch", f"0b{cfg['rstlatch']:0{width}b}",
+        cfg["rstlatch"] == want_latch)
     row("GPIO.0-3 alt functions", f"0b{cfg['altfunc']:04b}",
-        cfg["altfunc"] == EXPECT_ALTFUNC_GPIO0_3)
+        cfg["altfunc"] == want_alt)
+    row("AN978 checksum", "ok" if cfg["checksum_ok"] else "MISMATCH",
+        cfg["checksum_ok"])
+    row("serial programmed", repr(nvm_serial) if nvm_serial else "(none)",
+        bool(nvm_serial))
 
     # -- 3 state before enabling ------------------------------------------
     print("\n3. state before enabling")
     snap = dev.snapshot()
-    row("VBUS at J3", "absent" if not snap["vbus_hil_sns"] else "PRESENT",
-        snap["vbus_hil_sns"] == 0)
-    row("eFuse fault", "ok" if snap["hil_flt_n"] else "FAULT",
-        snap["hil_flt_n"] == 1)
-    row("CC / data / opto",
-        f"cc={snap['cc_en_n']} data={snap['data_en_n']} ext={snap['ext_io0']}",
-        (snap["cc_en_n"], snap["data_en_n"], snap["ext_io0"]) == (1, 1, 1))
-    row("VSYS source", "vbus_pwr (J2)" if not snap["u14_st"] else "vbus_up (J1)")
+    if board.sense_pin is not None:
+        row("VBUS at J3", "absent" if not board.vbus_present(snap) else "PRESENT",
+            not board.vbus_present(snap))
+    # The power-up state is whatever the reset latch left, not a controlled
+    # condition. A legacy board comes up with VBUS enabled, so FLT can read low
+    # for a moment; only the check after a controlled connect is a gate.
+    if board.vbus_on(snap):
+        row("eFuse fault (pre-enable)",
+            "ok" if not board.fault(snap) else "FAULT - re-checked after connect")
+    else:
+        row("eFuse fault", "not judged (VBUS off)")
+    if board is BOARD_V2:
+        row("CC / data / opto",
+            f"cc={snap['cc_en_n']} data={snap['data_en_n']} "
+            f"ext={snap['ext_io0']}",
+            (snap["cc_en_n"], snap["data_en_n"], snap["ext_io0"]) == (1, 1, 1))
+        row("VSYS source", board.source(snap))
+    else:
+        row("CC", "connected" if board.cc_connected(snap) else "cut")
+        row("data path", "closed" if board.data_connected(snap) else "open")
+        row("VBUS enable", "on" if board.vbus_on(snap) else "off")
 
     # -- 4 function --------------------------------------------------------
     print("\n4. function: connect then disconnect")
     before = usb_devices()
-    dev.write_outputs(SAFE_STATE)
+    dev.write_outputs(board.safe_state)
     time.sleep(0.100)
 
     t0 = time.monotonic()
-    dev.set_pin(CC_EN_N, 0)
+    dev.set_pin(board.cc_pin, board.cc_connected_level)
     time.sleep(0.010)
-    dev.set_pin(VBUS_EN, 1)
-    up = _wait_until(dev, lambda s: s["vbus_hil_sns"] == 1 and s["hil_flt_n"] == 1,
-                     1.0)
-    t_up = (time.monotonic() - t0) * 1000
-    row("VBUS rises", f"{t_up:.0f} ms" if up else "TIMEOUT", up)
-    if up:
+    dev.set_pin(board.vbus_pin, board.vbus_on_level)
+    up = None
+    t_up = 0.0
+    if board.sense_pin is not None:
+        up = _wait_until(
+            dev, lambda s: board.vbus_present(s) and not board.fault(s), 1.0)
+        t_up = (time.monotonic() - t0) * 1000
+        row("VBUS rises", f"{t_up:.0f} ms" if up else "TIMEOUT", up)
+    else:
+        row("VBUS rises", "not sensed on this board")
+    if up is not False:
         time.sleep(0.040)
-        dev.set_pin(DATA_EN_N, 0)
+        dev.set_pin(board.data_pin, board.data_connected_level)
 
     # -- 5 DUT -------------------------------------------------------------
     print("\n5. DUT enumeration at J3")
@@ -739,17 +1157,23 @@ def cmd_verify(args) -> int:
         bool(joined))
 
     snap = dev.snapshot()
-    row("eFuse fault while loaded", "ok" if snap["hil_flt_n"] else "FAULT",
-        snap["hil_flt_n"] == 1)
+    row("eFuse fault while loaded", "ok" if not board.fault(snap) else "FAULT",
+        not board.fault(snap))
 
     # -- restore safe ------------------------------------------------------
-    dev.set_pin(DATA_EN_N, 1)
+    dev.set_pin(board.data_pin, board.data_open_level)
     time.sleep(0.020)
-    dev.set_pin(CC_EN_N, 1)
+    dev.set_pin(board.cc_pin, board.cc_cut_level)
     time.sleep(0.020)
-    dev.set_pin(VBUS_EN, 0)
-    down = _wait_until(dev, lambda s: s["vbus_hil_sns"] == 0, 0.150)
-    row("VBUS falls", "collapsed" if down else "TIMEOUT", down)
+    dev.set_pin(board.vbus_pin, board.vbus_off_level)
+    if board.ext_pin is not None:
+        dev.set_pin(board.ext_pin, 1)
+    if board.sense_pin is not None:
+        down = _wait_until(dev, lambda s: not board.vbus_present(s), 0.150)
+        row("VBUS falls", "collapsed" if down else "TIMEOUT", down)
+    else:
+        time.sleep(0.050)
+        row("VBUS falls", "switched off (not sensed on this board)")
 
     # VBUS collapses in tens of ms, but the host needs longer than that to tear
     # the port down and stop reporting the device, so give it a moment before
@@ -764,9 +1188,10 @@ def cmd_verify(args) -> int:
 
     # -- fleet record ------------------------------------------------------
     # Section 6.3 asks for a per-unit read-back record. The duplicate check is
-    # the important half: with five interchangeable boards, a repeated serial
-    # is easy to miss by eye and impossible to see from the host.
+    # the important half: with interchangeable boards, a repeated serial is
+    # easy to miss by eye and impossible to see from the host.
     if args.record:
+        serial = nvm_serial or host_serial
         note = ""
         repeat = fleet_already_seen(args.record, serial) if serial else None
         if repeat:
@@ -790,13 +1215,14 @@ def cmd_verify(args) -> int:
             "release": f"0x{release:04X}",
             "bcd_device": f"0x{bcd:04X}" if bcd is not None else "",
             "config": f"0x{cfg['version']:02X}",
-            "pushpull": f"0b{cfg['pushpull']:07b}",
-            "rstlatch": f"0b{cfg['rstlatch']:07b}",
+            "pushpull": f"0b{cfg['pushpull']:0{width}b}",
+            "rstlatch": f"0b{cfg['rstlatch']:0{width}b}",
             "altfunc": f"0b{cfg['altfunc']:04b}",
             "vbus_up_ms": f"{t_up:.0f}" if up else "",
             "dut": "; ".join(joined)[:80],
             "failed": "; ".join(failed),
             "notes": note,
+            "board": board.key,
         })
         print(f"recorded to {args.record}")
 
@@ -811,23 +1237,38 @@ def cmd_verify(args) -> int:
 def cmd_on(args) -> int:
     """Section 6.4 connect: CC on, VBUS on, confirm, 40 ms, data on."""
     dev = open_device(args)
+    board = dev.board
     t0 = time.monotonic()
 
+    if args.high_current and board.source_pin is None:
+        print("error: --high-current cannot be checked on a legacy board:\n"
+              "       there is no VBUS source select to read.",
+              file=sys.stderr)
+        return 1
+
     snap = dev.snapshot()
-    if args.high_current and snap["u14_st"]:
+    if args.high_current and board.source(snap) == "vbus_up":
         print("error: high-current requested but U14 has selected VBUS_UP (J1).\n"
               "       Connect and qualify J2, then retry.", file=sys.stderr)
         return 1
 
-    dev.set_pin(CC_EN_N, 0)            # present Rp first
+    dev.set_pin(board.cc_pin, board.cc_connected_level)   # present Rp first
     time.sleep(0.010)
-    dev.set_pin(VBUS_EN, 1)            # then bring up VBUS
+    dev.set_pin(board.vbus_pin, board.vbus_on_level)      # then bring up VBUS
+
+    if board.sense_pin is None:
+        time.sleep(0.040)                                 # no sense to wait on
+        dev.set_pin(board.data_pin, board.data_connected_level)
+        print(f"DUT connected ({(time.monotonic() - t0) * 1000:.0f} ms); "
+              f"VBUS and source not sensed on this board")
+        return 0
 
     def good(s):
-        return s["vbus_hil_sns"] == 1 and s["hil_flt_n"] == 1
+        return board.vbus_present(s) and not board.fault(s)
 
     if not _wait_until(dev, good, timeout=1.0):
-        dev.write_outputs({CC_EN_N: 1, VBUS_EN: 0})
+        dev.write_outputs({board.cc_pin: board.cc_cut_level,
+                           board.vbus_pin: board.vbus_off_level})
         print("error: VBUS_HIL did not come up clean within 1 s.\n"
               "       Check eFuse fault (GPIO.0), J2/J1 source (GPIO.3) "
               "and the J3 connection.\n"
@@ -836,25 +1277,30 @@ def cmd_on(args) -> int:
         return 1
 
     time.sleep(0.040)                  # let the ramp settle
-    dev.set_pin(DATA_EN_N, 0)          # finally close the data path
+    dev.set_pin(board.data_pin, board.data_connected_level)
 
     print(f"DUT connected ({(time.monotonic() - t0) * 1000:.0f} ms); "
-          f"source={'vbus_pwr' if not snap['u14_st'] else 'vbus_up'}")
+          f"source={board.source(snap)}")
     return 0
 
 
 def cmd_ext(args) -> int:
     dev = open_device(args)
+    board = dev.board
+    if board.ext_pin is None:
+        print("error: no J4 opto line on a legacy usb-passthrough board.",
+              file=sys.stderr)
+        return 1
     asserted = args.action == "on"
-    dev.set_pin(EXT_IO0, 0 if asserted else 1)
+    dev.set_pin(board.ext_pin, 0 if asserted else 1)
     print(f"J4 opto line {'asserted (LED driven)' if asserted else 'released'}")
     return 0
 
 
 def cmd_watch(args) -> int:
     dev = open_device(args)
-    keys = ["hil_flt_n", "vbus_hil_sns", "u14_st", "cc_en_n",
-            "vbus_en", "data_en_n", "ext_io0"]
+    board = dev.board
+    keys = [board.pin_names[p] for p in range(board.gpio_count)]
     header = f"{'time':>8}  " + "  ".join(f"{k:>12}" for k in keys)
     print(header)
     print("-" * len(header))
@@ -879,6 +1325,17 @@ def cmd_watch(args) -> int:
 # --------------------------------------------------------------------------
 
 
+BOARD_CHOICES = ("auto", "v2.0", "v1.1", "v1.0")
+
+
+def _add_board_option(parser, subcommand=False):
+    parser.add_argument(
+        "--board", choices=BOARD_CHOICES,
+        default=argparse.SUPPRESS if subcommand else "auto",
+        help="board generation; 'auto' reads it from the CP2102N part number "
+             "(QFN28 = V2.0, QFN24 = legacy v1.1/v1.0)")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="usb-ctr-mac.py",
@@ -895,27 +1352,36 @@ def build_parser() -> argparse.ArgumentParser:
                    help="which matching device to use if several are present")
     p.add_argument("-v", "--verbose", action="store_true",
                    help="print the USB traffic to stderr")
+    _add_board_option(p)
 
     # A bare `usb-ctr-mac.py` shows the line state rather than an argparse
     # error - it is read-only, so it is a safe default.
     p.set_defaults(command="status")
     sub = p.add_subparsers(dest="command", required=False)
 
-    sub.add_parser("info", help="identity, and whether the NVM is programmed")
+    def sub_parser(*args, **kwargs):
+        parser = sub.add_parser(*args, **kwargs)
+        _add_board_option(parser, subcommand=True)
+        return parser
 
-    check = sub.add_parser("check",
-                           help="read the NVM back and compare to section 6.3")
+    sub_parser("info", help="identity, and whether the NVM is programmed")
+
+    check = sub_parser("check",
+                       help="read the NVM back and compare to the image "
+                            "this board should carry")
     check.add_argument("--expect-release", type=lambda s: int(s, 0), default=None,
                        metavar="0xNNNN",
                        help="expected Release Version, overriding the built-in "
                             "default")
+    check.add_argument("--record", metavar="PATH", default=None,
+                       help="append a per-unit NVM read-back record to this TSV")
 
-    sub.add_parser("status", help="decoded state of all seven lines")
-    sub.add_parser("safe", help="force the power-up safe state")
+    sub_parser("status", help="decoded state of every line")
+    sub_parser("safe", help="force the power-up safe state")
 
-    verify = sub.add_parser("verify",
-                            help="full per-unit acceptance check (identity, "
-                                 "image, function, DUT)")
+    verify = sub_parser("verify",
+                        help="full per-unit acceptance check (identity, "
+                             "image, function, DUT)")
     verify.add_argument("--dut-wait", type=float, default=3.0,
                         help="seconds to wait for the DUT to enumerate after "
                              "connect (default 3)")
@@ -932,16 +1398,16 @@ def build_parser() -> argparse.ArgumentParser:
                              "serial, e.g. --expect-serial 0004 when testing "
                              "unit 4")
 
-    on = sub.add_parser("on", help="connect the DUT (section 6.4 sequence)")
+    on = sub_parser("on", help="connect the DUT (section 6.4 sequence)")
     on.add_argument("--high-current", action="store_true",
                     help="require that J2/VBUS_PWR is the active source")
 
-    sub.add_parser("off", help="disconnect the DUT (section 6.4 sequence)")
+    sub_parser("off", help="disconnect the DUT (section 6.4 sequence)")
 
-    ext = sub.add_parser("ext", help="drive the J4 opto-isolated line")
+    ext = sub_parser("ext", help="drive the J4 opto-isolated line")
     ext.add_argument("action", choices=("on", "off"))
 
-    watch = sub.add_parser("watch", help="poll the lines and print changes")
+    watch = sub_parser("watch", help="poll the lines and print changes")
     watch.add_argument("--interval", type=float, default=0.05,
                        help="poll interval in seconds (default 0.05)")
 
@@ -962,13 +1428,13 @@ COMMANDS = {
 
 
 def main(argv=None) -> int:
-    global EXPECT_RELEASE_VERSION
+    global EXPECT_RELEASE_OVERRIDE
 
     args = build_parser().parse_args(argv)
 
     override = getattr(args, "expect_release", None)
     if override is not None:
-        EXPECT_RELEASE_VERSION = override
+        EXPECT_RELEASE_OVERRIDE = override
 
     if usb is None:
         print(f"pyusb is required but not importable ({USB_IMPORT_ERROR}).\n"
